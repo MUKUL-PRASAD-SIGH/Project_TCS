@@ -1,5 +1,9 @@
 import { useState } from "react";
 import type { FormEvent } from "react";
+import { MicButton } from "./MicButton";
+import { LanguageSelect } from "./LanguageSelect";
+import type { VoiceInputStatus } from "../hooks/useVoiceInput";
+import type { VoiceLanguage } from "../api/deepgram";
 
 interface LandingProps {
   onStart: (input: string) => void;
@@ -13,6 +17,9 @@ const EXAMPLES = [
 
 export function Landing({ onStart }: LandingProps) {
   const [value, setValue] = useState("");
+  const [voiceStatus, setVoiceStatus] = useState<VoiceInputStatus>("idle");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>("en");
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
@@ -64,6 +71,20 @@ export function Landing({ onStart }: LandingProps) {
                 placeholder="e.g., I want to start a restaurant, or I need to renovate my house..."
                 className="flex-1 bg-transparent outline-none px-3 py-3 text-slate-900 placeholder:text-slate-400 text-base"
               />
+              <LanguageSelect
+                size="lg"
+                value={voiceLanguage}
+                onChange={setVoiceLanguage}
+              />
+              <MicButton
+                size="lg"
+                language={voiceLanguage}
+                onTranscript={(text) => setValue(text)}
+                onStatusChange={(status, error) => {
+                  setVoiceStatus(status);
+                  setVoiceError(error);
+                }}
+              />
               <button
                 type="submit"
                 disabled={!value.trim()}
@@ -84,6 +105,20 @@ export function Landing({ onStart }: LandingProps) {
                 </svg>
               </button>
             </div>
+            {(voiceStatus === "recording" ||
+              voiceStatus === "transcribing" ||
+              (voiceStatus === "error" && voiceError)) && (
+              <p
+                className={`mt-2 text-xs ${
+                  voiceStatus === "error" ? "text-amber-600" : "text-slate-400"
+                }`}
+              >
+                {voiceStatus === "recording" &&
+                  "Listening… click the mic again to stop."}
+                {voiceStatus === "transcribing" && "Transcribing…"}
+                {voiceStatus === "error" && voiceError}
+              </p>
+            )}
           </form>
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">

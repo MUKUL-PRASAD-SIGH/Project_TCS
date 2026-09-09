@@ -2,9 +2,15 @@ import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type { ChatMessage, DemoOutcome, PermitDetails } from "../types";
 import { chatScript, permitDetails } from "../data/mockData";
+import { getScriptMessage } from "../data/translations";
 import { ProgressPanel } from "./ProgressPanel";
 import { ResultCard } from "./ResultCard";
 import { TypingIndicator } from "./TypingIndicator";
+import { MicButton } from "./MicButton";
+import { TtsButton } from "./TtsButton";
+import { LanguageSelect } from "./LanguageSelect";
+import type { VoiceInputStatus } from "../hooks/useVoiceInput";
+import type { VoiceLanguage } from "../api/deepgram";
 
 interface ChatScreenProps {
   initialInput: string;
@@ -40,6 +46,9 @@ export function ChatScreen({
   const [showResult, setShowResult] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [progressOpen, setProgressOpen] = useState(false);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceInputStatus>("idle");
+  const [voiceError, setVoiceError] = useState<string | null>(null);
+  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>("en");
   const scrollRef = useRef<HTMLDivElement>(null);
   const evaluationTriggered = useRef(false);
 
@@ -49,7 +58,12 @@ export function ChatScreen({
     const timer = setTimeout(() => {
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), sender: "ai", text: chatScript[0].aiMessage },
+        {
+          id: nextId(),
+          sender: "ai",
+          text: getScriptMessage(0, voiceLanguage, chatScript[0].aiMessage),
+          language: voiceLanguage,
+        },
       ]);
       setCurrentStepIndex(0);
       setIsTyping(false);
@@ -118,7 +132,16 @@ export function ChatScreen({
       }
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), sender: "ai", text: nextStep.aiMessage },
+        {
+          id: nextId(),
+          sender: "ai",
+          text: getScriptMessage(
+            nextIndex,
+            voiceLanguage,
+            nextStep.aiMessage,
+          ),
+          language: voiceLanguage,
+        },
       ]);
       setCurrentStepIndex(nextIndex);
       setIsTyping(false);
@@ -209,11 +232,14 @@ export function ChatScreen({
                   <div
                     className={
                       msg.sender === "user"
-                        ? "max-w-[85%] rounded-2xl rounded-br-sm bg-slate-900 text-white px-4 py-2.5 text-sm"
-                        : "max-w-[85%] rounded-2xl rounded-bl-sm bg-gray-100 text-slate-800 px-4 py-2.5 text-sm"
+                        ? "max-w-[85%] flex flex-col rounded-2xl rounded-br-sm bg-slate-900 text-white px-4 py-2.5 text-sm"
+                        : "max-w-[85%] flex flex-col items-start rounded-2xl rounded-bl-sm bg-gray-100 text-slate-800 px-4 py-2.5 text-sm"
                     }
                   >
                     {msg.text}
+                    {msg.sender === "ai" && (
+                      <TtsButton text={msg.text} language={msg.language} />
+                    )}
                   </div>
                 </div>
               ))}
@@ -251,6 +277,20 @@ export function ChatScreen({
                 }
                 className="flex-1 bg-transparent outline-none px-2 py-2 text-sm text-slate-900 placeholder:text-slate-400 disabled:text-slate-400"
               />
+              <LanguageSelect
+                value={voiceLanguage}
+                onChange={setVoiceLanguage}
+                disabled={inputDisabled}
+              />
+              <MicButton
+                disabled={inputDisabled}
+                language={voiceLanguage}
+                onTranscript={(text) => setInputValue(text)}
+                onStatusChange={(status, error) => {
+                  setVoiceStatus(status);
+                  setVoiceError(error);
+                }}
+              />
               <button
                 type="submit"
                 disabled={inputDisabled || !inputValue.trim()}
@@ -271,6 +311,19 @@ export function ChatScreen({
                 </svg>
               </button>
             </div>
+            {(voiceStatus === "recording" ||
+              voiceStatus === "transcribing" ||
+              (voiceStatus === "error" && voiceError)) && (
+              <p
+                className={`max-w-2xl mx-auto mt-1.5 text-xs ${
+                  voiceStatus === "error" ? "text-amber-600" : "text-slate-400"
+                }`}
+              >
+                {voiceStatus === "recording" && "Listening… click the mic again to stop."}
+                {voiceStatus === "transcribing" && "Transcribing…"}
+                {voiceStatus === "error" && voiceError}
+              </p>
+            )}
           </form>
         </div>
 
