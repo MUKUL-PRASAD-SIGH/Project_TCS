@@ -1,8 +1,15 @@
 import { useEffect, useRef, useState } from "react";
 import type { ChangeEvent, FormEvent } from "react";
-import type { ChatMessage, DemoOutcome, PermitDetails } from "../types";
-import { chatScript, permitDetails } from "../data/mockData";
-import { getFileAckMessage, getScriptMessage } from "../data/translations";
+import type { ChatMessage, PermitDetails } from "../types";
+import {
+  deriveDocuments,
+  deriveRequirements,
+  describePermit,
+  getPermitById,
+} from "../data/permitRules";
+import type { RawPermit } from "../data/permitRules";
+import { askGemini } from "../api/gemini";
+import type { DemoOverride, GeminiTurn } from "../api/gemini";
 import { ProgressPanel } from "./ProgressPanel";
 import { ResultCard } from "./ResultCard";
 import { TypingIndicator } from "./TypingIndicator";
@@ -16,27 +23,23 @@ interface ChatScreenProps {
   initialInput: string;
   /** Language detected on the landing page, if the user spoke their initial request. */
   initialLanguage: VoiceLanguage | null;
-  demoOutcome: DemoOutcome;
+  demoOverride: DemoOverride;
   onStartOver: () => void;
 }
 
-function clonePermit(): PermitDetails {
+function buildPermitDetails(raw: RawPermit): PermitDetails {
   return {
-    ...permitDetails,
-    requirements: permitDetails.requirements.map((r) => ({ ...r })),
-    documents: permitDetails.documents.map((d) => ({ ...d })),
-  };
-}
-
-/** Flips the first "missing" document to "have" — a no-op if none are missing. */
-function markFirstMissingDocumentAsHave(permit: PermitDetails): PermitDetails {
-  const index = permit.documents.findIndex((d) => d.status === "missing");
-  if (index === -1) return permit;
-  return {
-    ...permit,
-    documents: permit.documents.map((d, i) =>
-      i === index ? { ...d, status: "have" as const } : d,
-    ),
+    id: raw.permit_id,
+    name: raw.permit_name,
+    description: describePermit(raw),
+    requirements: deriveRequirements(raw).map((r) => ({
+      ...r,
+      status: "pending" as const,
+    })),
+    documents: deriveDocuments(raw).map((d) => ({
+      ...d,
+      status: "missing" as const,
+    })),
   };
 }
 
@@ -49,16 +52,18 @@ function nextId() {
 export function ChatScreen({
   initialInput,
   initialLanguage,
-  demoOutcome,
+  demoOverride,
   onStartOver,
 }: ChatScreenProps) {
-  const [permit, setPermit] = useState<PermitDetails>(clonePermit);
+  const [permit, setPermit] = useState<PermitDetails | null>(null);
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: nextId(), sender: "user", text: initialInput },
   ]);
-  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [isTyping, setIsTyping] = useState(false);
   const [showResult, setShowResult] = useState(false);
+  const [finalEligibility, setFinalEligibility] = useState(false);
+  const [resultSummary, setResultSummary] = useState("");
+  const [chatError, setChatError] = useState<string | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [progressOpen, setProgressOpen] = useState(false);
   const [voiceStatus, setVoiceStatus] = useState<VoiceInputStatus>("idle");
@@ -72,57 +77,123 @@ export function ChatScreen({
   const [sessionLanguage, setSessionLanguage] = useState<VoiceLanguage | null>(
     initialLanguage,
   );
-  const [uploadingFileName, setUploadingFileName] = useState<string | null>(
-    null,
-  );
+  const [uploadingFileNames, setUploadingFileNames] = useState<
+    string[] | null
+  >(null);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const evaluationTriggered = useRef(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Kick off the conversation with the first script step.
-  useEffect(() => {
-    setIsTyping(true);
-    const timer = setTimeout(() => {
-      const lang = sessionLanguage ?? "en";
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: nextId(),
-          sender: "ai",
-          text: getScriptMessage(0, lang, chatScript[0].aiMessage),
-          language: lang,
-        },
-      ]);
-      setCurrentStepIndex(0);
-      setIsTyping(false);
-    }, 1000);
-    return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Once the final script step has been shown, auto-evaluate eligibility.
-  useEffect(() => {
-    if (currentStepIndex !== chatScript.length - 1) return;
-    if (evaluationTriggered.current) return;
-    evaluationTriggered.current = true;
-
-    setIsTyping(true);
-    const timer = setTimeout(() => {
-      setIsTyping(false);
-      setShowResult(true);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [currentStepIndex]);
+  // Source of truth sent to Gemini — kept in refs (not state) so an
+  // in-flight async call always reads the latest value, never a stale one
+  // captured at render time.
+  const matchedPermitRef = useRef<RawPermit | null>(null);
+  const confirmedIdsRef = useRef<string[]>([]);
+  const geminiHistoryRef = useRef<GeminiTurn[]>([]);
+  // Guards against React StrictMode's double-invoke of mount effects in
+  // dev, which would otherwise fire two real Gemini calls for one session.
+  const hasStartedRef = useRef(false);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, isTyping, showResult, uploadingFileName]);
+  }, [messages, isTyping, showResult, uploadingFileNames, chatError]);
 
-  const inputDisabled =
-    isTyping || showResult || currentStepIndex >= chatScript.length - 1;
+  const inputDisabled = isTyping || showResult;
+
+  async function runTurn(userTextForGemini: string) {
+    setIsTyping(true);
+    setChatError(null);
+
+    try {
+      const result = await askGemini({
+        history: geminiHistoryRef.current,
+        newUserText: userTextForGemini,
+        sessionLanguage: sessionLanguage ?? "en",
+        matchedPermit: matchedPermitRef.current,
+        confirmedIds: confirmedIdsRef.current,
+        demoOverride,
+      });
+
+      geminiHistoryRef.current = [
+        ...geminiHistoryRef.current,
+        { role: "user", text: userTextForGemini },
+        { role: "model", text: result.reply_message },
+      ];
+
+      let currentPermit = permit;
+
+      if (!matchedPermitRef.current && result.matched_permit_id) {
+        const raw = getPermitById(result.matched_permit_id);
+        if (raw) {
+          matchedPermitRef.current = raw;
+          currentPermit = buildPermitDetails(raw);
+        }
+      }
+
+      if (currentPermit && result.newly_satisfied_requirements.length > 0) {
+        const satisfied = new Set(result.newly_satisfied_requirements);
+        currentPermit = {
+          ...currentPermit,
+          requirements: currentPermit.requirements.map((r) =>
+            satisfied.has(r.id) ? { ...r, status: "met" as const } : r,
+          ),
+          documents: currentPermit.documents.map((d) =>
+            satisfied.has(d.id) ? { ...d, status: "have" as const } : d,
+          ),
+        };
+        confirmedIdsRef.current = [
+          ...confirmedIdsRef.current,
+          ...result.newly_satisfied_requirements,
+        ];
+      }
+
+      if (result.is_evaluation_complete && currentPermit) {
+        if (result.final_eligibility === false) {
+          currentPermit = {
+            ...currentPermit,
+            requirements: currentPermit.requirements.map((r) =>
+              r.status === "pending" ? { ...r, status: "failed" as const } : r,
+            ),
+          };
+        }
+        setFinalEligibility(result.final_eligibility ?? false);
+        setResultSummary(result.reply_message);
+        setShowResult(true);
+      }
+
+      if (currentPermit) setPermit(currentPermit);
+
+      const lang = sessionLanguage ?? "en";
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextId(),
+          sender: "ai",
+          text: result.reply_message,
+          language: lang,
+          autoPlay: true,
+        },
+      ]);
+    } catch (err) {
+      setChatError(
+        err instanceof Error
+          ? err.message
+          : "Something went wrong. Please try again.",
+      );
+    } finally {
+      setIsTyping(false);
+    }
+  }
+
+  // Kick off the conversation with the user's initial request.
+  useEffect(() => {
+    if (hasStartedRef.current) return;
+    hasStartedRef.current = true;
+    void runTurn(initialInput);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function handleLanguageChange(selection: VoiceLanguageSelection) {
     setMicSelection(selection);
@@ -141,94 +212,51 @@ export function ChatScreen({
     const trimmed = inputValue.trim();
     if (!trimmed || inputDisabled) return;
 
-    const nextIndex = currentStepIndex + 1;
-    const nextStep = chatScript[nextIndex];
-    if (!nextStep) return;
-
     setMessages((prev) => [
       ...prev,
       { id: nextId(), sender: "user", text: trimmed },
     ]);
     setInputValue("");
-    setIsTyping(true);
-
-    setTimeout(() => {
-      if (nextStep.updatesRequirementId) {
-        const reqId = nextStep.updatesRequirementId;
-        setPermit((prev) => ({
-          ...prev,
-          requirements: prev.requirements.map((r) =>
-            r.id === reqId
-              ? {
-                  ...r,
-                  status:
-                    demoOutcome === "ineligible" && reqId === "req_2"
-                      ? "failed"
-                      : "met",
-                }
-              : r,
-          ),
-        }));
-      }
-      const lang = sessionLanguage ?? "en";
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: nextId(),
-          sender: "ai",
-          text: getScriptMessage(nextIndex, lang, nextStep.aiMessage),
-          language: lang,
-        },
-      ]);
-      setCurrentStepIndex(nextIndex);
-      setIsTyping(false);
-    }, 1000);
+    void runTurn(trimmed);
   }
 
   function handleFileChange(e: ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    e.target.value = ""; // allow re-selecting the same file later
-    if (!file) return;
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-selecting the same file(s) later
+    if (files.length === 0) return;
 
-    setUploadingFileName(file.name);
+    const fileNames = files.map((f) => f.name);
+    setUploadingFileNames(fileNames);
     setTimeout(() => {
-      setUploadingFileName(null);
+      setUploadingFileNames(null);
       setMessages((prev) => [
         ...prev,
         {
           id: nextId(),
           sender: "user",
-          text: file.name,
-          fileName: file.name,
+          text: fileNames.join(", "),
+          fileNames,
         },
       ]);
-      setPermit((prev) => markFirstMissingDocumentAsHave(prev));
-      setIsTyping(true);
-
-      setTimeout(() => {
-        const lang = sessionLanguage ?? "en";
-        setMessages((prev) => [
-          ...prev,
-          {
-            id: nextId(),
-            sender: "ai",
-            text: getFileAckMessage(lang),
-            language: lang,
-          },
-        ]);
-        setIsTyping(false);
-      }, 1000);
+      // Hidden from the visible chat — Gemini needs to know a file arrived,
+      // the user just sees the file-chip bubble above, not this note.
+      const systemNote = `SYSTEM_NOTE: The user just uploaded ${files.length} file${
+        files.length === 1 ? "" : "s"
+      }: ${fileNames.join(", ")}.`;
+      void runTurn(systemNote);
     }, 1000);
   }
 
-  const resolvedCount = permit.requirements.filter(
-    (r) => r.status !== "pending",
-  ).length;
+  const resolvedCount =
+    permit?.requirements.filter((r) => r.status !== "pending").length ?? 0;
+  const totalCount = permit?.requirements.length ?? 0;
   const progress = showResult
     ? 100
-    : Math.round((resolvedCount / permit.requirements.length) * 100);
+    : totalCount > 0
+      ? Math.round((resolvedCount / totalCount) * 100)
+      : 0;
 
-  const uploadDisabled = isTyping || uploadingFileName !== null;
+  const uploadDisabled = isTyping || uploadingFileNames !== null;
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -287,7 +315,13 @@ export function ChatScreen({
               onClick={() => setProgressOpen(false)}
             />
             <div className="relative bg-white border-b border-gray-200 shadow-lg max-h-[75vh] overflow-y-auto p-5">
-              <ProgressPanel permit={permit} progress={progress} />
+              {permit ? (
+                <ProgressPanel permit={permit} progress={progress} />
+              ) : (
+                <p className="text-sm text-slate-400">
+                  Figuring out which permit applies to you…
+                </p>
+              )}
             </div>
           </div>
         )}
@@ -311,32 +345,43 @@ export function ChatScreen({
                         : "max-w-[85%] flex flex-col items-start rounded-2xl rounded-bl-sm bg-gray-100 text-slate-800 px-4 py-2.5 text-sm"
                     }
                   >
-                    {msg.fileName ? (
-                      <span className="flex items-center gap-2">
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          viewBox="0 0 20 20"
-                          fill="currentColor"
-                          className="h-4 w-4 shrink-0"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4 3.75A2.75 2.75 0 016.75 1h4.836c.729 0 1.428.29 1.944.805l3.164 3.164c.516.516.805 1.215.805 1.944V16.25A2.75 2.75 0 0114.75 19h-8a2.75 2.75 0 01-2.75-2.75V3.75zM6.75 2.5c-.69 0-1.25.56-1.25 1.25v12.5c0 .69.56 1.25 1.25 1.25h8c.69 0 1.25-.56 1.25-1.25V7.5h-3.75A1.75 1.75 0 0110.5 5.75V2.5H6.75z"
-                            clipRule="evenodd"
-                          />
-                        </svg>
-                        {msg.fileName}
+                    {msg.fileNames ? (
+                      <span className="flex flex-col gap-1.5">
+                        {msg.fileNames.map((name) => (
+                          <span
+                            key={name}
+                            className="flex items-center gap-2"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              viewBox="0 0 20 20"
+                              fill="currentColor"
+                              className="h-4 w-4 shrink-0"
+                            >
+                              <path
+                                fillRule="evenodd"
+                                d="M4 3.75A2.75 2.75 0 016.75 1h4.836c.729 0 1.428.29 1.944.805l3.164 3.164c.516.516.805 1.215.805 1.944V16.25A2.75 2.75 0 0114.75 19h-8a2.75 2.75 0 01-2.75-2.75V3.75zM6.75 2.5c-.69 0-1.25.56-1.25 1.25v12.5c0 .69.56 1.25 1.25 1.25h8c.69 0 1.25-.56 1.25-1.25V7.5h-3.75A1.75 1.75 0 0110.5 5.75V2.5H6.75z"
+                                clipRule="evenodd"
+                              />
+                            </svg>
+                            {name}
+                          </span>
+                        ))}
                       </span>
                     ) : (
                       msg.text
                     )}
                     {msg.sender === "ai" && (
-                      <TtsButton text={msg.text} language={msg.language} />
+                      <TtsButton
+                        text={msg.text}
+                        language={msg.language}
+                        autoPlay={msg.autoPlay}
+                      />
                     )}
                   </div>
                 </div>
               ))}
-              {uploadingFileName && (
+              {uploadingFileNames && (
                 <div className="flex justify-end">
                   <div className="max-w-[85%] flex items-center gap-2 rounded-2xl rounded-br-sm bg-slate-100 text-slate-500 px-4 py-2.5 text-sm">
                     <svg
@@ -359,7 +404,9 @@ export function ChatScreen({
                         d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
                       />
                     </svg>
-                    Uploading {uploadingFileName}...
+                    {uploadingFileNames.length === 1
+                      ? `Uploading ${uploadingFileNames[0]}...`
+                      : `Uploading ${uploadingFileNames.length} files...`}
                   </div>
                 </div>
               )}
@@ -368,10 +415,18 @@ export function ChatScreen({
                   <TypingIndicator />
                 </div>
               )}
-              {showResult && (
+              {chatError && (
+                <div className="flex justify-start">
+                  <div className="max-w-[85%] rounded-2xl rounded-bl-sm bg-amber-50 border border-amber-200 text-amber-700 px-4 py-2.5 text-sm">
+                    {chatError}
+                  </div>
+                </div>
+              )}
+              {showResult && permit && (
                 <div className="pt-2">
                   <ResultCard
-                    outcome={demoOutcome}
+                    isEligible={finalEligibility}
+                    summaryMessage={resultSummary}
                     permit={permit}
                     onStartOver={onStartOver}
                   />
@@ -387,6 +442,7 @@ export function ChatScreen({
             <div className="max-w-2xl mx-auto flex items-center gap-2 rounded-xl border border-gray-300 bg-white px-2 py-1.5 focus-within:ring-2 focus-within:ring-slate-900 focus-within:border-slate-900 transition-shadow">
               <input
                 type="file"
+                multiple
                 ref={fileInputRef}
                 onChange={handleFileChange}
                 className="hidden"
@@ -476,7 +532,13 @@ export function ChatScreen({
 
         {/* Desktop progress panel */}
         <aside className="hidden md:flex md:flex-col w-80 shrink-0 border-l border-gray-200 px-6 py-6 overflow-y-auto">
-          <ProgressPanel permit={permit} progress={progress} />
+          {permit ? (
+            <ProgressPanel permit={permit} progress={progress} />
+          ) : (
+            <p className="text-sm text-slate-400">
+              Figuring out which permit applies to you…
+            </p>
+          )}
         </aside>
       </div>
     </div>

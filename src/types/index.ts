@@ -23,22 +23,16 @@ export interface PermitDetails {
   documents: PermitDocument[];
 }
 
-export interface ChatScriptStep {
-  step: number;
-  aiMessage: string;
-  updatesRequirementId: string | null;
-}
-
 export interface ChatMessage {
   id: string;
   sender: "ai" | "user";
   text: string;
   /** Language this AI message was authored/spoken in (used to pick the TTS voice). */
   language?: VoiceLanguage;
-  /** Set when this message represents a mock-uploaded file rather than typed/spoken text. */
-  fileName?: string;
+  /** Set when this message represents one or more mock-uploaded files rather than typed/spoken text. */
+  fileNames?: string[];
+  /** Whether TTS should start automatically as soon as this (AI) message appears. */
+  autoPlay?: boolean;
 }
-
-export type DemoOutcome = "eligible" | "ineligible";
 
 export type AppScreen = "landing" | "chat";

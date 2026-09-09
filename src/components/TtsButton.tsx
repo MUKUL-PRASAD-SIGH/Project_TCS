@@ -6,40 +6,35 @@ import { isWebSpeechSupported, speakWithWebSpeech } from "../api/webSpeechTts";
 interface TtsButtonProps {
   text: string;
   language?: VoiceLanguage;
+  /** Start speaking as soon as this button mounts (used for freshly generated AI replies). */
+  autoPlay?: boolean;
 }
 
 type TtsStatus = "idle" | "loading" | "ready" | "error";
 
-export function TtsButton({ text, language = "en" }: TtsButtonProps) {
+export function TtsButton({ text, language = "en", autoPlay = false }: TtsButtonProps) {
   const [status, setStatus] = useState<TtsStatus>("idle");
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  // Synchronous re-entrancy guard: React state updates are async, so a
+  // second click during the fetch/loading window could otherwise slip past
+  // a `status === "loading"` check and kick off a second, competing fetch.
+  const busyRef = useRef(false);
   const usesAura = AURA_SUPPORTED_LANGUAGES.has(language);
 
   useEffect(() => {
     return () => {
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
-      if (utteranceRef.current) window.speechSynthesis?.cancel();
+      window.speechSynthesis?.cancel();
     };
   }, []);
 
-  async function handleClick() {
-    if (status === "loading") return;
-
-    // Already have something to (re)play — just toggle it.
-    if (audioRef.current) {
-      if (isPlaying) audioRef.current.pause();
-      else audioRef.current.play();
-      return;
-    }
-    if (utteranceRef.current) {
-      if (isPlaying) window.speechSynthesis.pause();
-      else window.speechSynthesis.resume();
-      return;
-    }
+  async function startFresh() {
+    busyRef.current = true;
+    setErrorMessage(null);
 
     if (usesAura) {
       setStatus("loading");
@@ -50,15 +45,27 @@ export function TtsButton({ text, language = "en" }: TtsButtonProps) {
         const audio = new Audio(url);
         audio.onplay = () => setIsPlaying(true);
         audio.onpause = () => setIsPlaying(false);
-        audio.onended = () => setIsPlaying(false);
+        audio.onended = () => {
+          setIsPlaying(false);
+          // Reset position (don't drop the element) so the next click
+          // replays from the start instead of doing nothing.
+          audio.currentTime = 0;
+        };
         audioRef.current = audio;
         setStatus("ready");
-        await audio.play();
+        try {
+          await audio.play();
+        } catch {
+          // Autoplay blocked by the browser (no user gesture yet) — the
+          // audio is fetched and ready, the user just needs to press Play.
+        }
       } catch (err) {
         setStatus("error");
         setErrorMessage(
           err instanceof Error ? err.message : "Playback failed.",
         );
+      } finally {
+        busyRef.current = false;
       }
       return;
     }
@@ -68,6 +75,7 @@ export function TtsButton({ text, language = "en" }: TtsButtonProps) {
     if (!isWebSpeechSupported()) {
       setStatus("error");
       setErrorMessage("Spoken playback isn't supported in this browser.");
+      busyRef.current = false;
       return;
     }
     utteranceRef.current = speakWithWebSpeech(text, language, {
@@ -75,13 +83,52 @@ export function TtsButton({ text, language = "en" }: TtsButtonProps) {
         setStatus("ready");
         setIsPlaying(true);
       },
-      onEnd: () => setIsPlaying(false),
+      onEnd: () => {
+        setIsPlaying(false);
+        // SpeechSynthesisUtterance objects are single-use per spec — clear
+        // it so the next click creates a fresh one instead of doing nothing.
+        utteranceRef.current = null;
+      },
       onError: () => {
         setStatus("error");
         setErrorMessage("Playback failed.");
+        utteranceRef.current = null;
       },
     });
+    busyRef.current = false;
   }
+
+  function handleClick() {
+    if (status === "loading" || busyRef.current) return;
+
+    if (isPlaying) {
+      if (audioRef.current) audioRef.current.pause();
+      else if (utteranceRef.current) window.speechSynthesis.pause();
+      return;
+    }
+
+    if (audioRef.current) {
+      if (audioRef.current.ended) audioRef.current.currentTime = 0;
+      audioRef.current.play();
+      return;
+    }
+    if (utteranceRef.current) {
+      // A still-live (paused, not ended) utterance — resume it in place.
+      window.speechSynthesis.resume();
+      return;
+    }
+
+    void startFresh();
+  }
+
+  const autoPlayedRef = useRef(false);
+  useEffect(() => {
+    if (autoPlay && !autoPlayedRef.current) {
+      autoPlayedRef.current = true;
+      void startFresh();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <button

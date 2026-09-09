@@ -1,8 +1,11 @@
 import { useState } from "react";
 import { Landing } from "./components/Landing";
 import { ChatScreen } from "./components/ChatScreen";
-import type { AppScreen, DemoOutcome } from "./types";
+import type { AppScreen } from "./types";
 import type { VoiceLanguage } from "./api/deepgram";
+import type { DemoOverride } from "./api/gemini";
+
+type DemoOverrideChoice = "auto" | "eligible" | "ineligible";
 
 function App() {
   const [screen, setScreen] = useState<AppScreen>("landing");
@@ -10,7 +13,10 @@ function App() {
   const [initialLanguage, setInitialLanguage] = useState<VoiceLanguage | null>(
     null,
   );
-  const [demoOutcome, setDemoOutcome] = useState<DemoOutcome>("eligible");
+  const [demoOverrideChoice, setDemoOverrideChoice] =
+    useState<DemoOverrideChoice>("auto");
+  const demoOverride: DemoOverride =
+    demoOverrideChoice === "auto" ? null : demoOverrideChoice;
 
   function handleStart(input: string, language: VoiceLanguage | null) {
     setInitialInput(input);
@@ -33,7 +39,7 @@ function App() {
           key={initialInput}
           initialInput={initialInput}
           initialLanguage={initialLanguage}
-          demoOutcome={demoOutcome}
+          demoOverride={demoOverride}
           onStartOver={handleStartOver}
         />
       )}
@@ -43,25 +49,39 @@ function App() {
         <div className="flex items-center gap-1 rounded-full border border-gray-200 bg-white shadow-md p-1 text-xs">
           <button
             type="button"
-            onClick={() => setDemoOutcome("eligible")}
+            onClick={() => setDemoOverrideChoice("auto")}
+            title="Let Gemini decide eligibility for real, based on the conversation"
             className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
-              demoOutcome === "eligible"
+              demoOverrideChoice === "auto"
+                ? "bg-slate-900 text-white"
+                : "text-slate-500 hover:text-slate-800"
+            }`}
+          >
+            Auto
+          </button>
+          <button
+            type="button"
+            onClick={() => setDemoOverrideChoice("eligible")}
+            title="Force the final verdict to Eligible, for demo purposes"
+            className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
+              demoOverrideChoice === "eligible"
                 ? "bg-emerald-600 text-white"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Eligible
+            Force Eligible
           </button>
           <button
             type="button"
-            onClick={() => setDemoOutcome("ineligible")}
+            onClick={() => setDemoOverrideChoice("ineligible")}
+            title="Force the final verdict to Not Eligible, for demo purposes"
             className={`px-3 py-1.5 rounded-full font-medium transition-colors ${
-              demoOutcome === "ineligible"
+              demoOverrideChoice === "ineligible"
                 ? "bg-red-500 text-white"
                 : "text-slate-500 hover:text-slate-800"
             }`}
           >
-            Ineligible
+            Force Ineligible
           </button>
         </div>
       </div>

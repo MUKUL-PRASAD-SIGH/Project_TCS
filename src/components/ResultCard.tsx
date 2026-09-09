@@ -1,15 +1,19 @@
-import type { DemoOutcome, PermitDetails } from "../types";
-import { eligibleNextSteps, ineligibleReasons } from "../data/mockData";
+import type { PermitDetails } from "../types";
 
 interface ResultCardProps {
-  outcome: DemoOutcome;
+  isEligible: boolean;
+  /** Gemini's own closing explanation for this verdict. */
+  summaryMessage: string;
   permit: PermitDetails;
   onStartOver: () => void;
 }
 
-export function ResultCard({ outcome, permit, onStartOver }: ResultCardProps) {
-  const isEligible = outcome === "eligible";
-
+export function ResultCard({
+  isEligible,
+  summaryMessage,
+  permit,
+  onStartOver,
+}: ResultCardProps) {
   return (
     <div className="rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden max-w-xl w-full mx-auto">
       <div
@@ -79,88 +83,58 @@ export function ResultCard({ outcome, permit, onStartOver }: ResultCardProps) {
       </div>
 
       <div className="px-6 py-5 flex flex-col gap-5">
-        {isEligible ? (
-          <>
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
-                Requirements
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {permit.requirements.map((req) => (
-                  <li
-                    key={req.id}
-                    className="flex items-center gap-2 text-sm text-slate-700"
-                  >
-                    <span className="text-emerald-600">✓</span>
-                    {req.label}
-                  </li>
-                ))}
-              </ul>
-            </div>
+        <p className="text-sm text-slate-700">{summaryMessage}</p>
 
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
-                Documents
-              </p>
-              <ul className="flex flex-col gap-1.5">
-                {permit.documents.map((doc) => (
-                  <li
-                    key={doc.id}
-                    className="flex items-center gap-2 text-sm text-slate-700"
-                  >
-                    <span
-                      className={
-                        doc.status === "have"
-                          ? "text-emerald-600"
-                          : "text-amber-500"
-                      }
-                    >
-                      {doc.status === "have" ? "✓" : "⚠"}
-                    </span>
-                    {doc.name}
-                    {doc.status === "missing" && (
-                      <span className="text-xs text-amber-600">(missing)</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            <div>
-              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
-                Next Steps
-              </p>
-              <ol className="flex flex-col gap-1.5">
-                {eligibleNextSteps.map((step, i) => (
-                  <li
-                    key={step}
-                    className="flex gap-2 text-sm text-slate-700"
-                  >
-                    <span className="text-slate-400 shrink-0">{i + 1}.</span>
-                    {step}
-                  </li>
-                ))}
-              </ol>
-            </div>
-          </>
-        ) : (
-          <div>
-            <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
-              Failed Requirements
-            </p>
-            <ul className="flex flex-col gap-1.5">
-              {ineligibleReasons.map((reason) => (
-                <li
-                  key={reason}
-                  className="flex gap-2 text-sm text-slate-700"
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
+            Requirements
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {permit.requirements.map((req) => (
+              <li
+                key={req.id}
+                className="flex items-center gap-2 text-sm text-slate-700"
+              >
+                <span
+                  className={
+                    req.status === "met" ? "text-emerald-600" : "text-red-500"
+                  }
                 >
-                  <span className="text-red-500 shrink-0">✕</span>
-                  {reason}
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
+                  {req.status === "met" ? "✓" : "✕"}
+                </span>
+                {req.label}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
+            Documents
+          </p>
+          <ul className="flex flex-col gap-1.5">
+            {permit.documents.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex items-center gap-2 text-sm text-slate-700"
+              >
+                <span
+                  className={
+                    doc.status === "have"
+                      ? "text-emerald-600"
+                      : "text-amber-500"
+                  }
+                >
+                  {doc.status === "have" ? "✓" : "⚠"}
+                </span>
+                {doc.name}
+                {doc.status === "missing" && (
+                  <span className="text-xs text-amber-600">(missing)</span>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
 
         <button
           onClick={onStartOver}
