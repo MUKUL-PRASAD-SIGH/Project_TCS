@@ -3,10 +3,10 @@ import type { FormEvent } from "react";
 import { MicButton } from "./MicButton";
 import { LanguageSelect } from "./LanguageSelect";
 import type { VoiceInputStatus } from "../hooks/useVoiceInput";
-import type { VoiceLanguage } from "../api/deepgram";
+import type { VoiceLanguage, VoiceLanguageSelection } from "../api/deepgram";
 
 interface LandingProps {
-  onStart: (input: string) => void;
+  onStart: (input: string, detectedLanguage: VoiceLanguage | null) => void;
 }
 
 const EXAMPLES = [
@@ -19,13 +19,16 @@ export function Landing({ onStart }: LandingProps) {
   const [value, setValue] = useState("");
   const [voiceStatus, setVoiceStatus] = useState<VoiceInputStatus>("idle");
   const [voiceError, setVoiceError] = useState<string | null>(null);
-  const [voiceLanguage, setVoiceLanguage] = useState<VoiceLanguage>("en");
+  const [voiceLanguage, setVoiceLanguage] =
+    useState<VoiceLanguageSelection>("auto");
+  const [detectedLanguage, setDetectedLanguage] =
+    useState<VoiceLanguage | null>(null);
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) return;
-    onStart(trimmed);
+    onStart(trimmed, detectedLanguage);
   }
 
   return (
@@ -79,7 +82,10 @@ export function Landing({ onStart }: LandingProps) {
               <MicButton
                 size="lg"
                 language={voiceLanguage}
-                onTranscript={(text) => setValue(text)}
+                onTranscript={(text, language) => {
+                  setValue(text);
+                  setDetectedLanguage(language);
+                }}
                 onStatusChange={(status, error) => {
                   setVoiceStatus(status);
                   setVoiceError(error);

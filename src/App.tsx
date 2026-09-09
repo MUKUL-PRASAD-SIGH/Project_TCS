@@ -2,20 +2,26 @@ import { useState } from "react";
 import { Landing } from "./components/Landing";
 import { ChatScreen } from "./components/ChatScreen";
 import type { AppScreen, DemoOutcome } from "./types";
+import type { VoiceLanguage } from "./api/deepgram";
 
 function App() {
   const [screen, setScreen] = useState<AppScreen>("landing");
   const [initialInput, setInitialInput] = useState("");
+  const [initialLanguage, setInitialLanguage] = useState<VoiceLanguage | null>(
+    null,
+  );
   const [demoOutcome, setDemoOutcome] = useState<DemoOutcome>("eligible");
 
-  function handleStart(input: string) {
+  function handleStart(input: string, language: VoiceLanguage | null) {
     setInitialInput(input);
+    setInitialLanguage(language);
     setScreen("chat");
   }
 
   function handleStartOver() {
     setScreen("landing");
     setInitialInput("");
+    setInitialLanguage(null);
   }
 
   return (
@@ -26,6 +32,7 @@ function App() {
         <ChatScreen
           key={initialInput}
           initialInput={initialInput}
+          initialLanguage={initialLanguage}
           demoOutcome={demoOutcome}
           onStartOver={handleStartOver}
         />

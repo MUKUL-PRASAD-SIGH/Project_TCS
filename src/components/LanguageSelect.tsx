@@ -1,16 +1,19 @@
-import type { VoiceLanguage } from "../api/deepgram";
+import type { VoiceLanguageSelection } from "../api/deepgram";
 
 interface LanguageSelectProps {
-  value: VoiceLanguage;
-  onChange: (language: VoiceLanguage) => void;
+  value: VoiceLanguageSelection;
+  onChange: (language: VoiceLanguageSelection) => void;
   disabled?: boolean;
   size?: "md" | "lg";
 }
 
-const LANGUAGES: { value: VoiceLanguage; label: string }[] = [
+const LANGUAGES: { value: VoiceLanguageSelection; label: string }[] = [
+  { value: "auto", label: "🌐 Auto-detect" },
   { value: "en", label: "English" },
   { value: "hi", label: "हिन्दी" },
-  { value: "kn", label: "ಕನ್ನಡ" },
+  // Deepgram's language detection doesn't cover Kannada, so it can never be
+  // picked up by "Auto-detect" — this is the only way to use it.
+  { value: "kn", label: "ಕನ್ನಡ (select manually)" },
   { value: "es", label: "Español" },
   { value: "fr", label: "Français" },
   { value: "de", label: "Deutsch" },
@@ -28,10 +31,10 @@ export function LanguageSelect({
   return (
     <select
       value={value}
-      onChange={(e) => onChange(e.target.value as VoiceLanguage)}
+      onChange={(e) => onChange(e.target.value as VoiceLanguageSelection)}
       disabled={disabled}
       aria-label="Voice input language"
-      title="Voice input language"
+      title="Voice input language — Auto-detect works for everything except Kannada"
       className={`shrink-0 rounded-lg border border-gray-200 bg-gray-50 text-slate-600 text-xs pl-2 pr-1 outline-none focus:ring-2 focus:ring-slate-900 disabled:text-gray-300 ${
         size === "lg" ? "h-11" : "h-9"
       }`}

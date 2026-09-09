@@ -35,6 +35,8 @@ export interface ChatMessage {
   text: string;
   /** Language this AI message was authored/spoken in (used to pick the TTS voice). */
   language?: VoiceLanguage;
+  /** Set when this message represents a mock-uploaded file rather than typed/spoken text. */
+  fileName?: string;
 }
 
 export type DemoOutcome = "eligible" | "ineligible";

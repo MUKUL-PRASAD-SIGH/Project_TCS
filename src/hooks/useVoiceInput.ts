@@ -1,12 +1,13 @@
 import { useCallback, useRef, useState } from "react";
 import { transcribeAudio } from "../api/deepgram";
-import type { VoiceLanguage } from "../api/deepgram";
+import type { VoiceLanguage, VoiceLanguageSelection } from "../api/deepgram";
 
 export type VoiceInputStatus = "idle" | "recording" | "transcribing" | "error";
 
 interface UseVoiceInputOptions {
-  onTranscript: (text: string) => void;
-  language: VoiceLanguage;
+  /** Called with the transcript and the language that was actually used (resolved from "auto" if applicable). */
+  onTranscript: (text: string, language: VoiceLanguage) => void;
+  language: VoiceLanguageSelection;
 }
 
 export function useVoiceInput({ onTranscript, language }: UseVoiceInputOptions) {
@@ -45,12 +46,9 @@ export function useVoiceInput({ onTranscript, language }: UseVoiceInputOptions) 
         const audioBlob = new Blob(chunksRef.current, { type: mimeType });
         setStatus("transcribing");
         try {
-          const transcript = await transcribeAudio(
-            audioBlob,
-            mimeType,
-            language,
-          );
-          onTranscript(transcript);
+          const { transcript, language: resolvedLanguage } =
+            await transcribeAudio(audioBlob, mimeType, language);
+          onTranscript(transcript, resolvedLanguage);
           setStatus("idle");
         } catch (err) {
           setStatus("error");

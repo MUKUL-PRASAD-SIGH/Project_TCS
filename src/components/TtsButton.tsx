@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
-import { synthesizeSpeech } from "../api/deepgram";
+import { AURA_SUPPORTED_LANGUAGES, synthesizeSpeech } from "../api/deepgram";
 import type { VoiceLanguage } from "../api/deepgram";
+import { isWebSpeechSupported, speakWithWebSpeech } from "../api/webSpeechTts";
 
 interface TtsButtonProps {
   text: string;
@@ -15,41 +16,71 @@ export function TtsButton({ text, language = "en" }: TtsButtonProps) {
   const [isPlaying, setIsPlaying] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const urlRef = useRef<string | null>(null);
+  const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const usesAura = AURA_SUPPORTED_LANGUAGES.has(language);
 
   useEffect(() => {
     return () => {
       if (urlRef.current) URL.revokeObjectURL(urlRef.current);
+      if (utteranceRef.current) window.speechSynthesis?.cancel();
     };
   }, []);
 
   async function handleClick() {
     if (status === "loading") return;
 
+    // Already have something to (re)play — just toggle it.
     if (audioRef.current) {
-      if (isPlaying) {
-        audioRef.current.pause();
-      } else {
-        audioRef.current.play();
+      if (isPlaying) audioRef.current.pause();
+      else audioRef.current.play();
+      return;
+    }
+    if (utteranceRef.current) {
+      if (isPlaying) window.speechSynthesis.pause();
+      else window.speechSynthesis.resume();
+      return;
+    }
+
+    if (usesAura) {
+      setStatus("loading");
+      try {
+        const blob = await synthesizeSpeech(text, language);
+        const url = URL.createObjectURL(blob);
+        urlRef.current = url;
+        const audio = new Audio(url);
+        audio.onplay = () => setIsPlaying(true);
+        audio.onpause = () => setIsPlaying(false);
+        audio.onended = () => setIsPlaying(false);
+        audioRef.current = audio;
+        setStatus("ready");
+        await audio.play();
+      } catch (err) {
+        setStatus("error");
+        setErrorMessage(
+          err instanceof Error ? err.message : "Playback failed.",
+        );
       }
       return;
     }
 
-    setStatus("loading");
-    try {
-      const blob = await synthesizeSpeech(text, language);
-      const url = URL.createObjectURL(blob);
-      urlRef.current = url;
-      const audio = new Audio(url);
-      audio.onplay = () => setIsPlaying(true);
-      audio.onpause = () => setIsPlaying(false);
-      audio.onended = () => setIsPlaying(false);
-      audioRef.current = audio;
-      setStatus("ready");
-      await audio.play();
-    } catch (err) {
+    // Aura has no voice for this language (Hindi/Kannada) — speak it
+    // through the browser's own Web Speech API instead.
+    if (!isWebSpeechSupported()) {
       setStatus("error");
-      setErrorMessage(err instanceof Error ? err.message : "Playback failed.");
+      setErrorMessage("Spoken playback isn't supported in this browser.");
+      return;
     }
+    utteranceRef.current = speakWithWebSpeech(text, language, {
+      onStart: () => {
+        setStatus("ready");
+        setIsPlaying(true);
+      },
+      onEnd: () => setIsPlaying(false),
+      onError: () => {
+        setStatus("error");
+        setErrorMessage("Playback failed.");
+      },
+    });
   }
 
   return (

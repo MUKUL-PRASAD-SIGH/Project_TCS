@@ -1,13 +1,13 @@
 import { useEffect } from "react";
 import { useVoiceInput } from "../hooks/useVoiceInput";
 import type { VoiceInputStatus } from "../hooks/useVoiceInput";
-import type { VoiceLanguage } from "../api/deepgram";
+import type { VoiceLanguage, VoiceLanguageSelection } from "../api/deepgram";
 
 interface MicButtonProps {
   disabled?: boolean;
   size?: "md" | "lg";
-  language: VoiceLanguage;
-  onTranscript: (text: string) => void;
+  language: VoiceLanguageSelection;
+  onTranscript: (text: string, language: VoiceLanguage) => void;
   onStatusChange?: (status: VoiceInputStatus, error: string | null) => void;
 }
 
