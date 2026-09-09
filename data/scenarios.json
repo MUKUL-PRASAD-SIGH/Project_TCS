@@ -1,0 +1,29 @@
+{
+  "schema_version": "1.0",
+  "scenarios": [
+    {
+      "id": "event-ready",
+      "name": "College event — requirements met",
+      "description": "A two-day event for 300 people without amplified sound or food.",
+      "permit_type": "temporary_event",
+      "venue_id": "demo-college-east",
+      "answers": {"event_duration_days": 2, "expected_attendance": 300, "emergency_plan_status": "have", "venue_permission_status": "have", "uses_amplified_sound": false, "serves_food": false}
+    },
+    {
+      "id": "food-stall-missing-document",
+      "name": "Food stall — missing document",
+      "description": "A three-day LPG food stall with a missing demo registration proof.",
+      "permit_type": "temporary_food_stall",
+      "venue_id": "demo-venue-central",
+      "answers": {"operating_days": 3, "food_handlers_trained": true, "handwashing_facility_available": true, "registration_proof_status": "missing", "uses_lpg": true, "uses_open_flame": false, "fire_extinguisher_available": true, "serves_perishables": false}
+    },
+    {
+      "id": "event-needs-information",
+      "name": "Event — information incomplete",
+      "description": "An event description with unanswered safety and document questions.",
+      "permit_type": "temporary_event",
+      "venue_id": "demo-ground-south",
+      "answers": {"event_duration_days": 1, "expected_attendance": 120}
+    }
+  ]
+}

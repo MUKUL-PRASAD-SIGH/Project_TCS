@@ -1,0 +1,11 @@
+{
+  "schema_version": "1.0",
+  "source_id": "permitai-demo-directory",
+  "entities": [
+    {"id": "in", "name": "India", "entity_type": "country", "parent_id": null, "source_reference": "DISCOVERY_ONLY_LGD"},
+    {"id": "in-ka", "name": "Karnataka", "entity_type": "state", "parent_id": "in", "source_reference": "DISCOVERY_ONLY_LGD"},
+    {"id": "in-ka-bengaluru-urban-demo", "name": "Bengaluru Urban demo area", "entity_type": "district_or_city_navigation", "parent_id": "in-ka", "source_reference": "SYNTHETIC_DEMO"},
+    {"id": "in-ka-mysuru-demo", "name": "Mysuru", "entity_type": "city_navigation", "parent_id": "in-ka", "source_reference": "SYNTHETIC_UNSUPPORTED_EXAMPLE"}
+  ],
+  "notice": "Navigation-only demo directory. It is not a permit-rule database."
+}

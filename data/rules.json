@@ -1,0 +1,89 @@
+{
+  "schema_version": "2.0",
+  "version": "permitai-synthetic-bengaluru-2026.09.1",
+  "disclaimer": "SYNTHETIC DEMO RULES — NOT GOVERNMENT REGULATIONS.",
+  "rule_sets": [
+    {
+      "jurisdiction_id": "in-ka-bengaluru-demo",
+      "authority_id": "bengaluru-demo-authority",
+      "permit_type": "temporary_event",
+      "version": "temporary-event-synthetic-2026.09.1",
+      "approval": {"status": "APPROVED_FOR_DEMO", "approved_at": "2026-09-09", "approved_by": "PermitAI hackathon team"},
+      "label": "SYNTHETIC DEMO RULES — NOT GOVERNMENT REGULATIONS.",
+      "rules": [
+        {
+          "rule_id": "event-duration-limit", "service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []},
+          "requirement": {"field": "event_duration_days", "operator": "lte", "value": 7},
+          "description": "The event duration must not exceed 7 days.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["event_duration_days"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-EVENT-01", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "event-attendance-limit", "service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []},
+          "requirement": {"field": "expected_attendance", "operator": "lte", "value": 500},
+          "description": "Expected attendance must not exceed 500 people.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["expected_attendance"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-EVENT-02", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "event-emergency-plan", "service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []}, "requirement": {"field": "emergency_plan_status", "operator": "equals", "value": "have"},
+          "description": "A self-reported emergency plan must be available.", "requirement_type": "document", "document": {"id": "emergency-plan", "name": "Emergency plan"}, "exceptions": [], "required_fields": ["emergency_plan_status"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-EVENT-03", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "event-venue-permission", "service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []}, "requirement": {"field": "venue_permission_status", "operator": "equals", "value": "have"},
+          "description": "Self-reported venue-owner permission must be available.", "requirement_type": "document", "document": {"id": "venue-permission", "name": "Venue-owner permission"}, "exceptions": [], "required_fields": ["venue_permission_status"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-EVENT-04", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "event-amplified-sound-curfew", "service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"field": "uses_amplified_sound", "operator": "equals", "value": true}, "requirement": {"field": "amplified_sound_end_hour", "operator": "lte", "value": 22},
+          "description": "Events using amplified sound must end it by 22:00.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["uses_amplified_sound", "amplified_sound_end_hour"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-EVENT-05", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "event-food-safety-plan", "service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"field": "serves_food", "operator": "equals", "value": true}, "requirement": {"field": "food_safety_plan_status", "operator": "equals", "value": "have"},
+          "description": "A self-reported food-safety plan is required when food is served.", "requirement_type": "document", "document": {"id": "food-safety-plan", "name": "Food-safety plan"}, "exceptions": [], "required_fields": ["serves_food", "food_safety_plan_status"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-EVENT-06", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        }
+      ]
+    },
+    {
+      "jurisdiction_id": "in-ka-bengaluru-demo",
+      "authority_id": "bengaluru-demo-authority",
+      "permit_type": "temporary_food_stall",
+      "version": "temporary-food-stall-synthetic-2026.09.1",
+      "approval": {"status": "APPROVED_FOR_DEMO", "approved_at": "2026-09-09", "approved_by": "PermitAI hackathon team"},
+      "label": "SYNTHETIC DEMO RULES — NOT GOVERNMENT REGULATIONS.",
+      "rules": [
+        {
+          "rule_id": "food-stall-duration-limit", "service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []}, "requirement": {"field": "operating_days", "operator": "lte", "value": 14},
+          "description": "The food stall must operate for no more than 14 days.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["operating_days"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-FOOD-01", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "food-handler-training", "service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []}, "requirement": {"field": "food_handlers_trained", "operator": "equals", "value": true},
+          "description": "All food handlers must self-report food-safety training.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["food_handlers_trained"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-FOOD-02", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "food-stall-handwashing", "service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []}, "requirement": {"field": "handwashing_facility_available", "operator": "equals", "value": true},
+          "description": "A handwashing facility must be available.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["handwashing_facility_available"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-FOOD-03", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "food-stall-registration-proof", "service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"all": []}, "requirement": {"field": "registration_proof_status", "operator": "equals", "value": "have"},
+          "description": "Synthetic demo registration proof must be self-reported as available.", "requirement_type": "document", "document": {"id": "demo-registration-proof", "name": "Demo registration proof"}, "exceptions": [], "required_fields": ["registration_proof_status"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-FOOD-04", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "food-stall-fire-extinguisher", "service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"any": [{"field": "uses_lpg", "operator": "equals", "value": true}, {"field": "uses_open_flame", "operator": "equals", "value": true}]}, "requirement": {"field": "fire_extinguisher_available", "operator": "equals", "value": true},
+          "description": "A suitable fire extinguisher is required when LPG or another open flame is used.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["uses_lpg", "uses_open_flame", "fire_extinguisher_available"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-FOOD-05", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        },
+        {
+          "rule_id": "food-stall-cold-storage", "service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "geographical_scope": {"jurisdiction_id": "in-ka-bengaluru-demo"}, "version": "1.0.0", "effective_from": "2026-01-01", "effective_to": null,
+          "applicability_condition": {"field": "serves_perishables", "operator": "equals", "value": true}, "requirement": {"all": [{"field": "cold_storage_available", "operator": "equals", "value": true}, {"field": "handwashing_facility_available", "operator": "equals", "value": true}]},
+          "description": "Perishable-food stalls must have cold storage and handwashing facilities.", "requirement_type": "eligibility", "exceptions": [], "required_fields": ["serves_perishables", "cold_storage_available", "handwashing_facility_available"], "source_id": "permitai-synthetic-brief-v1", "source_section": "TEMP-FOOD-06", "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO", "data_classification": "SYNTHETIC", "last_reviewed_at": "2026-09-09"
+        }
+      ]
+    }
+  ]
+}

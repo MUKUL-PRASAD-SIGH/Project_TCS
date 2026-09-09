@@ -2,23 +2,30 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 
 interface LandingProps {
-  onStart: (input: string) => void;
+  onStart: (input: string) => void | Promise<void>;
+  isLoading?: boolean;
+  error?: string;
+  nextQuestion?: string;
 }
 
 const EXAMPLES = [
-  "I want to start a restaurant",
-  "I need to renovate my house",
-  "I'm opening a small cafe",
+  "I want to organise a 2 day event for 100 people in Bengaluru",
+  "I want to run a temporary food stall in Bengaluru",
 ];
 
-export function Landing({ onStart }: LandingProps) {
+export function Landing({
+  onStart,
+  isLoading = false,
+  error,
+  nextQuestion,
+}: LandingProps) {
   const [value, setValue] = useState("");
 
   function handleSubmit(e: FormEvent) {
     e.preventDefault();
     const trimmed = value.trim();
     if (!trimmed) return;
-    onStart(trimmed);
+    void onStart(trimmed);
   }
 
   return (
@@ -61,12 +68,12 @@ export function Landing({ onStart }: LandingProps) {
                 value={value}
                 onChange={(e) => setValue(e.target.value)}
                 type="text"
-                placeholder="e.g., I want to start a restaurant, or I need to renovate my house..."
+                placeholder="e.g., I want to organise a 2 day event for 100 people in Bengaluru..."
                 className="flex-1 bg-transparent outline-none px-3 py-3 text-slate-900 placeholder:text-slate-400 text-base"
               />
               <button
                 type="submit"
-                disabled={!value.trim()}
+                disabled={!value.trim() || isLoading}
                 aria-label="Start"
                 className="shrink-0 h-11 w-11 rounded-lg bg-slate-900 text-white flex items-center justify-center disabled:bg-gray-200 disabled:text-gray-400 hover:bg-slate-700 disabled:hover:bg-gray-200 transition-colors"
               >
@@ -85,6 +92,14 @@ export function Landing({ onStart }: LandingProps) {
               </button>
             </div>
           </form>
+
+          {isLoading && (
+            <p className="mt-3 text-sm text-slate-500">Asking Bedrock to identify the permit…</p>
+          )}
+          {error && <p className="mt-3 text-sm text-red-600">{error}</p>}
+          {nextQuestion && (
+            <p className="mt-3 text-sm text-amber-700">{nextQuestion}</p>
+          )}
 
           <div className="mt-6 flex flex-wrap items-center justify-center gap-2">
             {EXAMPLES.map((ex) => (

@@ -1,0 +1,13 @@
+{
+  "type": "FeatureCollection",
+  "schema_version": "1.0",
+  "features": [],
+  "metadata": {
+    "coverage": "NO_VERIFIED_LOCAL_BOUNDARY_BUNDLED",
+    "source_id": "survey-of-india-abdb-discovery",
+    "version": null,
+    "review_status": "BOUNDARY_NEEDS_CONFIRMATION",
+    "attribution": "No boundary geometry is displayed. Survey of India ABDB is recorded only as a discovery starting point.",
+    "message": "A venue pin does not prove municipal jurisdiction; the demo requires explicit authority confirmation."
+  }
+}

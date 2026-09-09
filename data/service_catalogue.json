@@ -1,0 +1,7 @@
+{
+  "schema_version": "1.0",
+  "services": [
+    {"service_id": "temporary_event", "authority_id": "bengaluru-demo-authority", "jurisdiction_id": "in-ka-bengaluru-demo", "support_status": "SYNTHETIC_DEMO_COVERAGE", "active_rule_bundle": "temporary-event-synthetic-2026.09.1"},
+    {"service_id": "temporary_food_stall", "authority_id": "bengaluru-demo-authority", "jurisdiction_id": "in-ka-bengaluru-demo", "support_status": "SYNTHETIC_DEMO_COVERAGE", "active_rule_bundle": "temporary-food-stall-synthetic-2026.09.1"}
+  ]
+}

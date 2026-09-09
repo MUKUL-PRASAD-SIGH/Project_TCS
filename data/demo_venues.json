@@ -1,0 +1,10 @@
+{
+  "schema_version": "1.0",
+  "classification": "SYNTHETIC",
+  "venues": [
+    {"id": "demo-venue-central", "label": "PermitAI Demo Venue — Central Bengaluru", "longitude": 77.5946, "latitude": 12.9716},
+    {"id": "demo-college-east", "label": "PermitAI Synthetic College Venue — East", "longitude": 77.6412, "latitude": 12.9784},
+    {"id": "demo-ground-south", "label": "PermitAI Synthetic Community Ground — South", "longitude": 77.5851, "latitude": 12.9255}
+  ],
+  "notice": "Synthetic venue points for UI demonstration. They do not establish municipal jurisdiction."
+}

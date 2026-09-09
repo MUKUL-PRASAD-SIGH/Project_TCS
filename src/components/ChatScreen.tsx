@@ -1,18 +1,31 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
-import type { ChatMessage, DemoOutcome, PermitDetails } from "../types";
-import { chatScript, permitDetails } from "../data/mockData";
+import type {
+  AssessmentStatus,
+  ChatAssessResponse,
+  ChatMessage,
+  DemoOutcome,
+  ExtractedFact,
+  IntakeResponse,
+  PermitDetails,
+} from "../types";
+import { buildChatScript, buildPermitDetails } from "../data/mockData";
 import { ProgressPanel } from "./ProgressPanel";
 import { ResultCard } from "./ResultCard";
 import { TypingIndicator } from "./TypingIndicator";
 
 interface ChatScreenProps {
   initialInput: string;
+  intake: IntakeResponse;
   demoOutcome: DemoOutcome;
+  onAssessmentStatusChange: (status: AssessmentStatus) => void;
   onStartOver: () => void;
 }
 
-function clonePermit(): PermitDetails {
+const API_BASE_URL =
+  import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
+
+function clonePermit(permitDetails: PermitDetails): PermitDetails {
   return {
     ...permitDetails,
     requirements: permitDetails.requirements.map((r) => ({ ...r })),
@@ -28,49 +41,45 @@ function nextId() {
 
 export function ChatScreen({
   initialInput,
+  intake,
   demoOutcome,
+  onAssessmentStatusChange,
   onStartOver,
 }: ChatScreenProps) {
-  const [permit, setPermit] = useState<PermitDetails>(clonePermit);
+  const permitDetails = buildPermitDetails(intake.service_id!, intake.facts);
+  const [permit, setPermit] = useState<PermitDetails>(() =>
+    clonePermit(permitDetails),
+  );
+  const [facts, setFacts] = useState<ExtractedFact[]>(intake.facts);
+  const [contradictions, setContradictions] = useState<string[]>(
+    intake.contradictions,
+  );
   const [messages, setMessages] = useState<ChatMessage[]>([
     { id: nextId(), sender: "user", text: initialInput },
   ]);
-  const [currentStepIndex, setCurrentStepIndex] = useState(-1);
   const [isTyping, setIsTyping] = useState(false);
   const [showResult, setShowResult] = useState(false);
   const [inputValue, setInputValue] = useState("");
   const [progressOpen, setProgressOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  const evaluationTriggered = useRef(false);
 
   // Kick off the conversation with the first script step.
   useEffect(() => {
     setIsTyping(true);
     const timer = setTimeout(() => {
+      const firstMessage = buildChatScript(
+        intake.service_id!,
+        intake.facts,
+      )[0].aiMessage;
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), sender: "ai", text: chatScript[0].aiMessage },
+        { id: nextId(), sender: "ai", text: firstMessage },
       ]);
-      setCurrentStepIndex(0);
       setIsTyping(false);
     }, 1000);
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // Once the final script step has been shown, auto-evaluate eligibility.
-  useEffect(() => {
-    if (currentStepIndex !== chatScript.length - 1) return;
-    if (evaluationTriggered.current) return;
-    evaluationTriggered.current = true;
-
-    setIsTyping(true);
-    const timer = setTimeout(() => {
-      setIsTyping(false);
-      setShowResult(true);
-    }, 1200);
-    return () => clearTimeout(timer);
-  }, [currentStepIndex]);
 
   useEffect(() => {
     scrollRef.current?.scrollTo({
@@ -79,17 +88,12 @@ export function ChatScreen({
     });
   }, [messages, isTyping, showResult]);
 
-  const inputDisabled =
-    isTyping || showResult || currentStepIndex >= chatScript.length - 1;
+  const inputDisabled = isTyping || showResult;
 
-  function handleSend(e: FormEvent) {
+  async function handleSend(e: FormEvent) {
     e.preventDefault();
     const trimmed = inputValue.trim();
     if (!trimmed || inputDisabled) return;
-
-    const nextIndex = currentStepIndex + 1;
-    const nextStep = chatScript[nextIndex];
-    if (!nextStep) return;
 
     setMessages((prev) => [
       ...prev,
@@ -98,31 +102,69 @@ export function ChatScreen({
     setInputValue("");
     setIsTyping(true);
 
-    setTimeout(() => {
-      if (nextStep.updatesRequirementId) {
-        const reqId = nextStep.updatesRequirementId;
-        setPermit((prev) => ({
-          ...prev,
-          requirements: prev.requirements.map((r) =>
-            r.id === reqId
-              ? {
-                  ...r,
-                  status:
-                    demoOutcome === "ineligible" && reqId === "req_2"
-                      ? "failed"
-                      : "met",
-                }
-              : r,
-          ),
+    try {
+      const existingFacts = Object.fromEntries(
+        [...intake.facts, ...facts].map((fact) => [fact.field, fact.value]),
+      );
+      const response = await fetch(`${API_BASE_URL}/api/chat-assess`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          message: trimmed,
+          service_id: intake.service_id,
+          existing_facts: existingFacts,
+          existing_contradictions: contradictions,
+        }),
+      });
+      if (!response.ok) throw new Error("Follow-up assessment failed");
+      const result = (await response.json()) as ChatAssessResponse;
+      const serviceId = result.extracted_facts.service_id ?? intake.service_id!;
+      const accumulatedFacts: ExtractedFact[] = Object.entries(
+        result.extracted_facts,
+      )
+        .filter(([field, value]) => field !== "service_id" && value !== null)
+        .map(([field, value]) => ({
+          field,
+          value,
+          evidence: "Accumulated and validated by the backend",
         }));
-      }
+      setFacts(accumulatedFacts);
+      setContradictions(result.contradictions);
+      setPermit(clonePermit(buildPermitDetails(serviceId, accumulatedFacts)));
+
+      const status = result.assessment.overall_status;
+      onAssessmentStatusChange(status);
+      const labels: Partial<Record<AssessmentStatus, string>> = {
+        MORE_INFORMATION_NEEDED: "More information needed",
+        UNSUPPORTED: "Unsupported",
+        NEEDS_VERIFICATION: "Needs verification",
+      };
       setMessages((prev) => [
         ...prev,
-        { id: nextId(), sender: "ai", text: nextStep.aiMessage },
+        {
+          id: nextId(),
+          sender: "ai",
+          text: `${labels[status] ? `${labels[status]}: ` : ""}${result.explanation}`,
+        },
       ]);
-      setCurrentStepIndex(nextIndex);
+      if (
+        status === "MEETS_ASSESSED_REQUIREMENTS" ||
+        status === "REQUIREMENTS_NOT_MET"
+      ) {
+        setShowResult(true);
+      }
+    } catch {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: nextId(),
+          sender: "ai",
+          text: "I could not process that follow-up. Please try again.",
+        },
+      ]);
+    } finally {
       setIsTyping(false);
-    }, 1000);
+    }
   }
 
   const resolvedCount = permit.requirements.filter(

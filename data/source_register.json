@@ -1,0 +1,77 @@
+{
+  "schema_version": "1.0",
+  "sources": [
+    {
+      "source_id": "permitai-synthetic-brief-v1",
+      "title": "PermitAI hackathon synthetic rule brief",
+      "url": null,
+      "issuing_authority": "PermitAI hackathon team",
+      "reuse_terms": "Project-local synthetic data",
+      "retrieved_at": "2026-09-09",
+      "published_at": "2026-09-09",
+      "review_status": "REVIEWED_FOR_SYNTHETIC_DEMO",
+      "used_as_rule_evidence": true,
+      "notes": "Not legislation, government guidance, or official permit advice."
+    },
+    {
+      "source_id": "lgd-discovery",
+      "title": "Local Government Directory",
+      "url": "https://lgdirectory.gov.in/",
+      "issuing_authority": "Ministry of Panchayati Raj, Government of India",
+      "reuse_terms": "Not evaluated for ingestion in this hackathon",
+      "retrieved_at": "2026-09-09",
+      "published_at": null,
+      "review_status": "DISCOVERY_ONLY",
+      "used_as_rule_evidence": false,
+      "notes": "Administrative directory starting point only; not a permit-rule database."
+    },
+    {
+      "source_id": "survey-of-india-abdb-discovery",
+      "title": "Survey of India Administrative Boundary Data Base",
+      "url": "https://surveyofindia.gov.in/pages/administrative-boundary-data-base-abdb-",
+      "issuing_authority": "Survey of India",
+      "reuse_terms": "Catalogue inspected; geometry licensing and suitability not verified",
+      "retrieved_at": "2026-09-09",
+      "published_at": null,
+      "review_status": "DISCOVERY_ONLY",
+      "used_as_rule_evidence": false,
+      "notes": "No geometry copied or bundled."
+    },
+    {
+      "source_id": "india-code-discovery",
+      "title": "India Code",
+      "url": "https://indiacode.gov.in/",
+      "issuing_authority": "Government of India",
+      "reuse_terms": "Not evaluated for ingestion",
+      "retrieved_at": "2026-09-09",
+      "published_at": null,
+      "review_status": "ACCESS_NOT_VERIFIED",
+      "used_as_rule_evidence": false,
+      "notes": "Discovery starting point only."
+    },
+    {
+      "source_id": "karnataka-gazette-discovery",
+      "title": "Karnataka e-Gazette",
+      "url": "https://erajyapatra.karnataka.gov.in/",
+      "issuing_authority": "Government of Karnataka",
+      "reuse_terms": "Not evaluated for ingestion",
+      "retrieved_at": "2026-09-09",
+      "published_at": null,
+      "review_status": "ACCESS_NOT_VERIFIED",
+      "used_as_rule_evidence": false,
+      "notes": "Discovery starting point only; no material copied."
+    },
+    {
+      "source_id": "data-gov-in-discovery",
+      "title": "Open Government Data Platform India",
+      "url": "https://www.data.gov.in/",
+      "issuing_authority": "Government of India",
+      "reuse_terms": "Dataset-specific review required before ingestion",
+      "retrieved_at": "2026-09-09",
+      "published_at": null,
+      "review_status": "DISCOVERY_ONLY_PORTAL_MAINTENANCE",
+      "used_as_rule_evidence": false,
+      "notes": "Portal discovery point, not evidence for synthetic thresholds."
+    }
+  ]
+}

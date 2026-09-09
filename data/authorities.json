@@ -1,0 +1,22 @@
+{
+  "schema_version": "2.0",
+  "disclaimer": "SYNTHETIC DEMO RULES — NOT GOVERNMENT REGULATIONS.",
+  "jurisdictions": [
+    {
+      "id": "in-ka-bengaluru-demo",
+      "country": {"code": "IN", "name": "India"},
+      "state": {"code": "KA", "name": "Karnataka"},
+      "district_or_city": {"id": "in-ka-bengaluru-urban-demo", "name": "Bengaluru", "aliases": ["Bangalore"]},
+      "city": {"name": "Bengaluru", "aliases": ["Bangalore"]},
+      "authority": {
+        "id": "bengaluru-demo-authority",
+        "name": "Bengaluru Demo Municipal Authority",
+        "entity_type": "synthetic_municipal_authority"
+      },
+      "coverage": "SYNTHETIC_DEMO_COVERAGE",
+      "boundary_status": "BOUNDARY_NEEDS_CONFIRMATION",
+      "supported_wards_or_zones": [],
+      "reviewed_at": "2026-09-09"
+    }
+  ]
+}
