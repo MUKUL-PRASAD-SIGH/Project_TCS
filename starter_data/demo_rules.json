@@ -1,0 +1,94 @@
+{
+  "schema_version": "1.0",
+  "bundle_id": "DEMO-BUNDLE-001",
+  "version": "demo-v1",
+  "mode": "synthetic_demo",
+  "is_official": false,
+  "warning": "Invented test requirements only. Not Karnataka law or government guidance. Never use for real eligibility.",
+  "authority_id": "DEMO_AUTHORITY_01",
+  "location_id": "DEMO_LOCATION_01",
+  "effective_from": "2026-01-01",
+  "effective_to": null,
+  "source": {
+    "type": "synthetic_fixture",
+    "url": null,
+    "page": null
+  },
+  "permits": [
+    {
+      "permit_id": "demo_vendor",
+      "display_name": "Demo vendor permit",
+      "rules": [
+        {
+          "rule_id": "D-V-AGE",
+          "kind": "eligibility",
+          "applies_when": {
+            "op": "always"
+          },
+          "test": {
+            "field": "age",
+            "op": "gte",
+            "value": 18
+          },
+          "required_inputs": [
+            "age"
+          ]
+        },
+        {
+          "rule_id": "D-V-DOC",
+          "kind": "application_readiness",
+          "applies_when": {
+            "op": "always"
+          },
+          "test": {
+            "field": "documents.identity_proof",
+            "op": "eq",
+            "value": true
+          },
+          "required_inputs": [
+            "documents.identity_proof"
+          ]
+        }
+      ]
+    },
+    {
+      "permit_id": "demo_event",
+      "display_name": "Demo event permit",
+      "rules": [
+        {
+          "rule_id": "D-E-AGE",
+          "kind": "eligibility",
+          "applies_when": {
+            "op": "always"
+          },
+          "test": {
+            "field": "age",
+            "op": "gte",
+            "value": 18
+          },
+          "required_inputs": [
+            "age"
+          ]
+        },
+        {
+          "rule_id": "D-E-SOUND",
+          "kind": "application_readiness",
+          "applies_when": {
+            "field": "amplified_sound",
+            "op": "eq",
+            "value": true
+          },
+          "test": {
+            "field": "documents.demo_sound_clearance",
+            "op": "eq",
+            "value": true
+          },
+          "required_inputs": [
+            "amplified_sound",
+            "documents.demo_sound_clearance"
+          ]
+        }
+      ]
+    }
+  ]
+}

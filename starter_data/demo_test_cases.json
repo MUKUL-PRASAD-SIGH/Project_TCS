@@ -1,0 +1,183 @@
+{
+  "warning": "Invented test requirements only. Not Karnataka law or government guidance. Never use for real eligibility.",
+  "cases": [
+    {
+      "case_id": "D01",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 18,
+        "documents": {
+          "identity_proof": true
+        }
+      },
+      "expected_overall_status": "meets_assessed_requirements",
+      "note": "Inclusive lower boundary."
+    },
+    {
+      "case_id": "D02",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 17,
+        "documents": {
+          "identity_proof": true
+        }
+      },
+      "expected_overall_status": "requirements_not_met",
+      "note": "Known eligibility failure."
+    },
+    {
+      "case_id": "D03",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": null,
+        "documents": {
+          "identity_proof": true
+        }
+      },
+      "expected_overall_status": "more_information_needed",
+      "note": "Unknown age is not zero."
+    },
+    {
+      "case_id": "D04",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 24,
+        "documents": {}
+      },
+      "expected_overall_status": "more_information_needed",
+      "note": "Unmentioned document is unknown."
+    },
+    {
+      "case_id": "D05",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 24,
+        "documents": {
+          "identity_proof": false
+        }
+      },
+      "expected_overall_status": "requirements_not_met",
+      "note": "Known missing document is a readiness failure, not a claim of permanent legal ineligibility."
+    },
+    {
+      "case_id": "D06",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_event",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 20,
+        "amplified_sound": false,
+        "documents": {}
+      },
+      "expected_overall_status": "meets_assessed_requirements",
+      "note": "Conditional sound rule is not applicable."
+    },
+    {
+      "case_id": "D07",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_event",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 20,
+        "amplified_sound": true,
+        "documents": {
+          "demo_sound_clearance": true
+        }
+      },
+      "expected_overall_status": "meets_assessed_requirements",
+      "note": "Condition applies and requirement passes."
+    },
+    {
+      "case_id": "D08",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_event",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 20,
+        "amplified_sound": true,
+        "documents": {
+          "demo_sound_clearance": false
+        }
+      },
+      "expected_overall_status": "requirements_not_met",
+      "note": "Condition applies and requirement is known missing."
+    },
+    {
+      "case_id": "D09",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_event",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 20,
+        "amplified_sound": true,
+        "documents": {}
+      },
+      "expected_overall_status": "more_information_needed",
+      "note": "Applicable requirement has an unknown value."
+    },
+    {
+      "case_id": "D10",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_event",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 20,
+        "amplified_sound": null,
+        "documents": {}
+      },
+      "expected_overall_status": "more_information_needed",
+      "note": "Unknown applicability is not not-applicable."
+    },
+    {
+      "case_id": "D11",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_UNSUPPORTED_AUTHORITY",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2026-09-09",
+      "profile": {
+        "age": 24,
+        "documents": {
+          "identity_proof": true
+        }
+      },
+      "expected_overall_status": "needs_verification_or_unsupported",
+      "note": "No matching authority bundle."
+    },
+    {
+      "case_id": "D12",
+      "mode": "synthetic_demo",
+      "authority_id": "DEMO_AUTHORITY_01",
+      "permit_id": "demo_vendor",
+      "relevant_date": "2025-12-31",
+      "profile": {
+        "age": 24,
+        "documents": {
+          "identity_proof": true
+        }
+      },
+      "expected_overall_status": "needs_verification_or_unsupported",
+      "note": "Date before the fixture bundle effective date."
+    }
+  ],
+  "benchmark_status": "Fixtures only; no system accuracy measurement has been performed."
+}
