@@ -90,12 +90,11 @@ class RuleEngine:
     def get_questions(
         self, permit_type: str, answers: dict[str, Any]
     ) -> QuestionsResponse:
-        permit = self._permit(permit_type)
-        if permit is None:
+        questions = self.get_question_catalog(permit_type)
+        if not questions:
             return QuestionsResponse(
                 permit_type=permit_type, questions=[], remaining_fields=[]
             )
-        questions = [Question.model_validate(item) for item in permit.get("questions", [])]
         applicable: list[Question] = []
         for question in questions:
             if question.show_when is None:
@@ -115,6 +114,13 @@ class RuleEngine:
             questions=applicable,
             remaining_fields=remaining,
         )
+
+    def get_question_catalog(self, permit_type: str) -> list[Question]:
+        """Return configured question metadata in its authoritative order."""
+        permit = self._permit(permit_type)
+        if permit is None:
+            return []
+        return [Question.model_validate(item) for item in permit.get("questions", [])]
 
     def preflight(
         self,

@@ -1,15 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import type { FormEvent } from "react";
 import type {
-  AssessmentStatus,
+  ChatAssessment,
   ChatAssessResponse,
   ChatMessage,
-  DemoOutcome,
   ExtractedFact,
   IntakeResponse,
-  PermitDetails,
+  NextQuestion,
 } from "../types";
-import { buildChatScript, buildPermitDetails } from "../data/mockData";
+import { buildChatScript } from "../data/mockData";
 import { ProgressPanel } from "./ProgressPanel";
 import { ResultCard } from "./ResultCard";
 import { TypingIndicator } from "./TypingIndicator";
@@ -17,21 +16,11 @@ import { TypingIndicator } from "./TypingIndicator";
 interface ChatScreenProps {
   initialInput: string;
   intake: IntakeResponse;
-  demoOutcome: DemoOutcome;
-  onAssessmentStatusChange: (status: AssessmentStatus) => void;
   onStartOver: () => void;
 }
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL ?? "http://127.0.0.1:8000";
-
-function clonePermit(permitDetails: PermitDetails): PermitDetails {
-  return {
-    ...permitDetails,
-    requirements: permitDetails.requirements.map((r) => ({ ...r })),
-    documents: permitDetails.documents.map((d) => ({ ...d })),
-  };
-}
 
 let idCounter = 0;
 function nextId() {
@@ -39,17 +28,36 @@ function nextId() {
   return `msg_${idCounter}`;
 }
 
+async function requestAssessment(
+  message: string,
+  serviceId: string,
+  facts: ExtractedFact[],
+  contradictions: string[],
+  currentQuestionField: string | null,
+) {
+  const response = await fetch(`${API_BASE_URL}/api/chat-assess`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      message,
+      service_id: serviceId,
+      existing_facts: Object.fromEntries(
+        facts.map((fact) => [fact.field, fact.value]),
+      ),
+      existing_contradictions: contradictions,
+      current_question_field: currentQuestionField,
+    }),
+  });
+  if (!response.ok) throw new Error("Follow-up assessment failed");
+  return (await response.json()) as ChatAssessResponse;
+}
+
 export function ChatScreen({
   initialInput,
   intake,
-  demoOutcome,
-  onAssessmentStatusChange,
   onStartOver,
 }: ChatScreenProps) {
-  const permitDetails = buildPermitDetails(intake.service_id!, intake.facts);
-  const [permit, setPermit] = useState<PermitDetails>(() =>
-    clonePermit(permitDetails),
-  );
+  const [serviceId, setServiceId] = useState(intake.service_id!);
   const [facts, setFacts] = useState<ExtractedFact[]>(intake.facts);
   const [contradictions, setContradictions] = useState<string[]>(
     intake.contradictions,
@@ -58,26 +66,87 @@ export function ChatScreen({
     { id: nextId(), sender: "user", text: initialInput },
   ]);
   const [isTyping, setIsTyping] = useState(false);
-  const [showResult, setShowResult] = useState(false);
+  const [assessment, setAssessment] = useState<ChatAssessment | null>(null);
+  const [explanation, setExplanation] = useState("");
+  const [nextQuestion, setNextQuestion] = useState<NextQuestion | null>(null);
   const [inputValue, setInputValue] = useState("");
   const [progressOpen, setProgressOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
 
-  // Kick off the conversation with the first script step.
+  function applyAssessmentResult(result: ChatAssessResponse) {
+    const resolvedServiceId =
+      result.extracted_facts.service_id ?? intake.service_id!;
+    const accumulatedFacts: ExtractedFact[] = Object.entries(
+      result.extracted_facts,
+    )
+      .filter(([field, value]) => field !== "service_id" && value !== null)
+      .map(([field, value]) => ({
+        field,
+        value,
+        evidence: "Accumulated and validated by the backend",
+      }));
+    setFacts(accumulatedFacts);
+    setServiceId(resolvedServiceId);
+    setContradictions(result.contradictions);
+    setAssessment(result.assessment);
+    setExplanation(result.explanation);
+    setNextQuestion(result.next_question);
+
+    const status = result.assessment.overall_status;
+    const labels: Partial<Record<ChatAssessment["overall_status"], string>> = {
+      MORE_INFORMATION_NEEDED: "More information needed",
+      UNSUPPORTED: "Unsupported",
+      NEEDS_VERIFICATION: "Needs verification",
+    };
+    const responseText = result.next_question
+      ? result.next_question.question
+      : `${labels[status] ? `${labels[status]}: ` : ""}${result.explanation}`;
+    setMessages((previous) => [
+      ...previous,
+      { id: nextId(), sender: "ai", text: responseText },
+    ]);
+  }
+
+  // Run the guardrail immediately so the first missing question is proactive.
   useEffect(() => {
+    let active = true;
     setIsTyping(true);
-    const timer = setTimeout(() => {
-      const firstMessage = buildChatScript(
-        intake.service_id!,
-        intake.facts,
-      )[0].aiMessage;
-      setMessages((prev) => [
-        ...prev,
-        { id: nextId(), sender: "ai", text: firstMessage },
-      ]);
-      setIsTyping(false);
-    }, 1000);
-    return () => clearTimeout(timer);
+    const firstMessage = buildChatScript(
+      intake.service_id!,
+      intake.facts,
+    )[0].aiMessage;
+    setMessages((previous) => [
+      ...previous,
+      { id: nextId(), sender: "ai", text: firstMessage },
+    ]);
+    void requestAssessment(
+      initialInput,
+      intake.service_id!,
+      intake.facts,
+      intake.contradictions,
+      null,
+    )
+      .then((result) => {
+        if (active) applyAssessmentResult(result);
+      })
+      .catch(() => {
+        if (active) {
+          setMessages((previous) => [
+            ...previous,
+            {
+              id: nextId(),
+              sender: "ai",
+              text: "I could not determine the next question. Please try again.",
+            },
+          ]);
+        }
+      })
+      .finally(() => {
+        if (active) setIsTyping(false);
+      });
+    return () => {
+      active = false;
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -86,9 +155,16 @@ export function ChatScreen({
       top: scrollRef.current.scrollHeight,
       behavior: "smooth",
     });
-  }, [messages, isTyping, showResult]);
+  }, [messages, isTyping, assessment]);
 
-  const inputDisabled = isTyping || showResult;
+  const isFinalAssessment =
+    assessment?.overall_status === "MEETS_ASSESSED_REQUIREMENTS" ||
+    assessment?.overall_status === "REQUIREMENTS_NOT_MET";
+  const questioningStopped =
+    isFinalAssessment ||
+    assessment?.overall_status === "UNSUPPORTED" ||
+    assessment?.overall_status === "NEEDS_VERIFICATION";
+  const inputDisabled = isTyping || questioningStopped;
 
   async function handleSend(e: FormEvent) {
     e.preventDefault();
@@ -103,56 +179,14 @@ export function ChatScreen({
     setIsTyping(true);
 
     try {
-      const existingFacts = Object.fromEntries(
-        [...intake.facts, ...facts].map((fact) => [fact.field, fact.value]),
+      const result = await requestAssessment(
+        trimmed,
+        serviceId,
+        [...intake.facts, ...facts],
+        contradictions,
+        nextQuestion?.field ?? null,
       );
-      const response = await fetch(`${API_BASE_URL}/api/chat-assess`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: trimmed,
-          service_id: intake.service_id,
-          existing_facts: existingFacts,
-          existing_contradictions: contradictions,
-        }),
-      });
-      if (!response.ok) throw new Error("Follow-up assessment failed");
-      const result = (await response.json()) as ChatAssessResponse;
-      const serviceId = result.extracted_facts.service_id ?? intake.service_id!;
-      const accumulatedFacts: ExtractedFact[] = Object.entries(
-        result.extracted_facts,
-      )
-        .filter(([field, value]) => field !== "service_id" && value !== null)
-        .map(([field, value]) => ({
-          field,
-          value,
-          evidence: "Accumulated and validated by the backend",
-        }));
-      setFacts(accumulatedFacts);
-      setContradictions(result.contradictions);
-      setPermit(clonePermit(buildPermitDetails(serviceId, accumulatedFacts)));
-
-      const status = result.assessment.overall_status;
-      onAssessmentStatusChange(status);
-      const labels: Partial<Record<AssessmentStatus, string>> = {
-        MORE_INFORMATION_NEEDED: "More information needed",
-        UNSUPPORTED: "Unsupported",
-        NEEDS_VERIFICATION: "Needs verification",
-      };
-      setMessages((prev) => [
-        ...prev,
-        {
-          id: nextId(),
-          sender: "ai",
-          text: `${labels[status] ? `${labels[status]}: ` : ""}${result.explanation}`,
-        },
-      ]);
-      if (
-        status === "MEETS_ASSESSED_REQUIREMENTS" ||
-        status === "REQUIREMENTS_NOT_MET"
-      ) {
-        setShowResult(true);
-      }
+      applyAssessmentResult(result);
     } catch {
       setMessages((prev) => [
         ...prev,
@@ -166,13 +200,6 @@ export function ChatScreen({
       setIsTyping(false);
     }
   }
-
-  const resolvedCount = permit.requirements.filter(
-    (r) => r.status !== "pending",
-  ).length;
-  const progress = showResult
-    ? 100
-    : Math.round((resolvedCount / permit.requirements.length) * 100);
 
   return (
     <div className="h-screen flex flex-col bg-white">
@@ -205,7 +232,9 @@ export function ChatScreen({
             Application Progress
           </span>
           <span className="text-xs font-semibold text-slate-900">
-            {progress}%
+            {assessment?.overall_status
+              ? assessment.overall_status.replaceAll("_", " ")
+              : "Pending"}
           </span>
         </div>
         <svg
@@ -231,7 +260,12 @@ export function ChatScreen({
               onClick={() => setProgressOpen(false)}
             />
             <div className="relative bg-white border-b border-gray-200 shadow-lg max-h-[75vh] overflow-y-auto p-5">
-              <ProgressPanel permit={permit} progress={progress} />
+              <ProgressPanel
+                serviceId={serviceId}
+                facts={facts}
+                assessment={assessment}
+                explanation={explanation}
+              />
             </div>
           </div>
         )}
@@ -264,11 +298,12 @@ export function ChatScreen({
                   <TypingIndicator />
                 </div>
               )}
-              {showResult && (
+              {isFinalAssessment && assessment && (
                 <div className="pt-2">
                   <ResultCard
-                    outcome={demoOutcome}
-                    permit={permit}
+                    assessment={assessment}
+                    explanation={explanation}
+                    serviceId={serviceId}
                     onStartOver={onStartOver}
                   />
                 </div>
@@ -287,7 +322,7 @@ export function ChatScreen({
                 disabled={inputDisabled}
                 type="text"
                 placeholder={
-                  showResult
+                  isFinalAssessment
                     ? "Conversation complete"
                     : "Type your reply..."
                 }
@@ -318,7 +353,12 @@ export function ChatScreen({
 
         {/* Desktop progress panel */}
         <aside className="hidden md:flex md:flex-col w-80 shrink-0 border-l border-gray-200 px-6 py-6 overflow-y-auto">
-          <ProgressPanel permit={permit} progress={progress} />
+          <ProgressPanel
+            serviceId={serviceId}
+            facts={facts}
+            assessment={assessment}
+            explanation={explanation}
+          />
         </aside>
       </div>
     </div>

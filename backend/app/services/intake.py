@@ -1,3 +1,4 @@
+import json
 import re
 from typing import Any, Callable
 
@@ -31,14 +32,20 @@ class IntakeService:
         return bool(self.settings.bedrock_model_id)
 
     def understand(
-        self, message: str, selected_service_id: str | None = None
+        self,
+        message: str,
+        selected_service_id: str | None = None,
+        current_question: dict[str, Any] | None = None,
     ) -> IntakeResponse:
         if self.bedrock_configured:
             try:
                 extraction = self._normalise_extraction(
-                    self._bedrock_extract(message, selected_service_id),
+                    self._bedrock_extract(
+                        message, selected_service_id, current_question
+                    ),
                     message,
                     selected_service_id,
+                    current_question,
                 )
                 return self._response(
                     extraction,
@@ -53,6 +60,7 @@ class IntakeService:
                     self._local_extract(message, selected_service_id),
                     message,
                     selected_service_id,
+                    current_question,
                 )
                 return self._response(
                     extraction,
@@ -65,6 +73,7 @@ class IntakeService:
             self._local_extract(message, selected_service_id),
             message,
             selected_service_id,
+            current_question,
         )
         return self._response(
             extraction,
@@ -112,7 +121,10 @@ class IntakeService:
         unsupported_permit = bool(
             re.search(r"\b(?:mining|mine)\s+(?:permit|licen[cs]e)\b", lowered)
         )
-        unsupported_jurisdiction = bool(re.search(r"\brajasthan\b", lowered))
+        unsupported_jurisdiction = bool(
+            re.search(r"\brajasthan\b", lowered)
+            and not re.search(r"\b(?:bengaluru|bangalore)\b", lowered)
+        )
         return unsupported_permit or unsupported_jurisdiction
 
     def _local_extract(
@@ -179,6 +191,7 @@ class IntakeService:
         extraction: IntakeExtraction,
         message: str,
         selected_service_id: str | None,
+        current_question: dict[str, Any] | None = None,
     ) -> IntakeExtraction:
         """Map model vocabulary to the exact fields consumed by RuleEngine."""
         lowered = message.casefold()
@@ -199,6 +212,12 @@ class IntakeService:
             "attendance": "expected_attendance",
             "amplified_sound": "uses_amplified_sound",
             "food_service": "serves_food",
+            "has_emergency_plan": "emergency_plan_status",
+            "emergency_plan": "emergency_plan_status",
+            "emergency_plan_available": "emergency_plan_status",
+            "has_venue_permission": "venue_permission_status",
+            "venue_permission": "venue_permission_status",
+            "venue_permission_available": "venue_permission_status",
         }
         normalised: dict[str, ExtractedFact] = {}
         for fact in extraction.facts:
@@ -271,17 +290,18 @@ class IntakeService:
                 value = self._normalise_number(value)
                 if value is None:
                     continue
-            elif field == "venue_permission":
-                field = "venue_permission_status"
-                value = "have" if value is True else "missing" if value is False else "unknown"
-            elif field == "emergency_plan":
-                field = "emergency_plan_status"
+            elif field.endswith("_status") and isinstance(value, bool):
                 value = "have" if value is True else "missing" if value is False else "unknown"
             normalised[field] = ExtractedFact(
                 field=field,
                 value=value,
                 evidence=fact.evidence,
             )
+        contextual_fact = self._normalise_contextual_answer(
+            message, current_question
+        )
+        if contextual_fact is not None:
+            normalised[contextual_fact.field] = contextual_fact
         return IntakeExtraction(
             service_id=service_id,
             facts=list(normalised.values()),
@@ -313,8 +333,75 @@ class IntakeService:
                 return False
         return None
 
+    @classmethod
+    def _normalise_contextual_answer(
+        cls,
+        message: str,
+        current_question: dict[str, Any] | None,
+    ) -> ExtractedFact | None:
+        """Interpret a short reply only through backend-selected question metadata."""
+        if not current_question:
+            return None
+        field = current_question.get("field")
+        input_type = current_question.get("input_type")
+        if not isinstance(field, str) or not field:
+            return None
+
+        if input_type == "number":
+            value = cls._normalise_number(message)
+            return (
+                ExtractedFact(field=field, value=value, evidence=message)
+                if value is not None
+                else None
+            )
+
+        cleaned = re.sub(r"[^a-z0-9 ]", " ", message.casefold()).strip()
+        intent: str | None = None
+        if re.match(r"^(?:yes|yeah|yep|i do|i have)\b", cleaned):
+            intent = "yes"
+        elif re.match(r"^(?:no|nope|i do not|i don't|i have not|i haven't)\b", cleaned):
+            intent = "no"
+        elif re.match(r"^(?:unknown|not sure|unsure|do not know|don't know)\b", cleaned):
+            intent = "unknown"
+
+        if input_type == "boolean" and intent is not None:
+            value: bool | str = (
+                True if intent == "yes" else False if intent == "no" else "unknown"
+            )
+            return ExtractedFact(field=field, value=value, evidence=message)
+
+        if input_type == "select":
+            options = current_question.get("options", [])
+            for option in options:
+                if not isinstance(option, dict):
+                    continue
+                option_value = option.get("value")
+                option_label = str(option.get("label", "")).casefold()
+                if cleaned == str(option_value).casefold() or cleaned == option_label:
+                    return ExtractedFact(
+                        field=field, value=option_value, evidence=message
+                    )
+                if intent == "yes" and option_label.startswith("yes"):
+                    return ExtractedFact(
+                        field=field, value=option_value, evidence=message
+                    )
+                if intent == "no" and option_label == "no":
+                    return ExtractedFact(
+                        field=field, value=option_value, evidence=message
+                    )
+                if intent == "unknown" and (
+                    option_value == "unknown" or "not sure" in option_label
+                ):
+                    return ExtractedFact(
+                        field=field, value=option_value, evidence=message
+                    )
+        return None
+
     def _bedrock_extract(
-        self, message: str, selected_service_id: str | None
+        self,
+        message: str,
+        selected_service_id: str | None,
+        current_question: dict[str, Any] | None = None,
     ) -> IntakeExtraction:
         client = (
             self._bedrock_client_factory()
@@ -341,6 +428,11 @@ class IntakeService:
                         {
                             "text": (
                                 f"Selected service: {selected_service_id or 'none'}\n"
+                                "Backend-selected current question: "
+                                f"{json.dumps(current_question) if current_question else 'none'}\n"
+                                "When the citizen answers the current question, record the "
+                                "answer under its exact field and use only its configured option "
+                                "values. Interpret yes/no only in that question's context.\n"
                                 f"<citizen_message>{message}</citizen_message>"
                             )
                         }

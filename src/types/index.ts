@@ -1,30 +1,6 @@
-export type RequirementStatus = "pending" | "met" | "failed";
-export type DocumentStatus = "have" | "missing";
-
-export interface Requirement {
-  id: string;
-  label: string;
-  status: RequirementStatus;
-}
-
-export interface PermitDocument {
-  id: string;
-  name: string;
-  status: DocumentStatus;
-}
-
-export interface PermitDetails {
-  id: string;
-  name: string;
-  description: string;
-  requirements: Requirement[];
-  documents: PermitDocument[];
-}
-
 export interface ChatScriptStep {
   step: number;
   aiMessage: string;
-  updatesRequirementId: string | null;
 }
 
 export interface ChatMessage {
@@ -33,11 +9,7 @@ export interface ChatMessage {
   text: string;
 }
 
-export type DemoOutcome = "eligible" | "ineligible";
-
 export type AppScreen = "landing" | "chat";
-
-export type SupportedServiceId = "temporary_event" | "temporary_food_stall";
 
 export interface ExtractedFact {
   field: string;
@@ -46,7 +18,7 @@ export interface ExtractedFact {
 }
 
 export interface IntakeResponse {
-  service_id: SupportedServiceId | null;
+  service_id: string | null;
   facts: ExtractedFact[];
   contradictions: string[];
   provider: "bedrock" | "structured_fallback";
@@ -64,21 +36,55 @@ export type AssessmentStatus =
   | "NEEDS_VERIFICATION"
   | "UNSUPPORTED";
 
+export type RuleResultStatus =
+  | "PASS"
+  | "FAIL"
+  | "UNKNOWN"
+  | "NOT_APPLICABLE";
+
+export interface RuleResult {
+  rule_id: string;
+  status: RuleResultStatus;
+  label: string;
+  description?: string;
+  message?: string;
+  actual_value?: unknown;
+  expected?: Record<string, unknown> | null;
+  rule_version?: string;
+}
+
+export interface AssessmentCounts {
+  passed: number;
+  failed: number;
+  unknown: number;
+  not_applicable: number;
+}
+
+export interface ChatAssessment {
+  overall_status: AssessmentStatus;
+  rule_results: RuleResult[];
+  counts: AssessmentCounts;
+  missing_fields: string[];
+  rule_version: string | null;
+}
+
+export interface NextQuestion {
+  field: string;
+  label: string;
+  question: string;
+  input_type: "choice" | "number" | "date" | "text";
+  options: string[];
+}
+
 export interface ChatAssessResponse {
   provider: "bedrock_glm5" | "structured_fallback";
   extracted_facts: Record<string, string | number | boolean | null> & {
-    service_id: SupportedServiceId | null;
+    service_id: string | null;
   };
+  accumulated_facts: Record<string, string | number | boolean | null>;
   contradictions: string[];
-  assessment: {
-    overall_status: AssessmentStatus;
-    passed: Array<{ rule_id: string; description: string }>;
-    failed: Array<{ rule_id: string; description: string }>;
-    unknown: Array<{ rule_id: string; description: string }>;
-    not_applicable: Array<{ rule_id: string; description: string }>;
-    missing_fields?: string[];
-    rule_version: string | null;
-  };
+  assessment: ChatAssessment;
+  next_question: NextQuestion | null;
   explanation: string;
   disclaimer: string;
 }

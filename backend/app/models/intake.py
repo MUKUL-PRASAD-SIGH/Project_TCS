@@ -34,6 +34,7 @@ class IntakeResponse(IntakeExtraction):
 class Question(BaseModel):
     field: str
     label: str
+    question: str
     help_text: str | None = None
     input_type: Literal["number", "boolean", "select", "date", "text"]
     options: list[dict[str, Any]] = Field(default_factory=list)

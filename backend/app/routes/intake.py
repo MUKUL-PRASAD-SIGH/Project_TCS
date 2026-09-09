@@ -19,10 +19,11 @@ router = APIRouter(prefix="/api", tags=["intake"])
 class ChatAssessRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
-    message: str = Field(min_length=3, max_length=2000)
+    message: str = Field(min_length=1, max_length=2000)
     service_id: str | None = None
     existing_facts: dict[str, Any] = Field(default_factory=dict)
     existing_contradictions: list[str] = Field(default_factory=list)
+    current_question_field: str | None = Field(default=None, max_length=100)
 
 
 @router.post("/intake", response_model=IntakeResponse)
@@ -34,15 +35,31 @@ def intake(payload: IntakeRequest, request: Request) -> IntakeResponse:
 
 @router.post("/chat-assess")
 def chat_assess(payload: ChatAssessRequest, request: Request) -> dict:
+    rule_engine = request.app.state.rule_engine
+    current_question = None
+    if payload.service_id:
+        applicable_questions = rule_engine.get_questions(
+            payload.service_id, payload.existing_facts
+        )
+        if payload.current_question_field in applicable_questions.remaining_fields:
+            current_question = next(
+                (
+                    question
+                    for question in applicable_questions.questions
+                    if question.field == payload.current_question_field
+                ),
+                None,
+            )
     intake_result = request.app.state.intake_service.understand(
-        payload.message, payload.service_id
+        payload.message,
+        payload.service_id,
+        current_question.model_dump(mode="json") if current_question else None,
     )
     service_id = intake_result.service_id or payload.service_id
     allowed_fields = {
-        question.field
-        for question in request.app.state.rule_engine.get_questions(
-            service_id or "unsupported", {}
-        ).questions
+        question.field for question in rule_engine.get_question_catalog(
+            service_id or "unsupported"
+        )
     }
     answers = {
         field: value
@@ -73,6 +90,36 @@ def chat_assess(payload: ChatAssessRequest, request: Request) -> dict:
         "bedrock_glm5" if intake_result.provider == "bedrock" else "structured_fallback"
     )
 
+    def next_question(missing_fields: list[str]) -> dict[str, Any] | None:
+        if not service_id:
+            return None
+        applicable = rule_engine.get_questions(service_id, answers)
+        missing = set(missing_fields)
+        question = next(
+            (
+                item
+                for item in applicable.questions
+                if item.field in missing
+            ),
+            None,
+        )
+        if question is None:
+            return None
+        options = [str(item.get("value")) for item in question.options]
+        input_type = question.input_type
+        if input_type == "boolean":
+            input_type = "choice"
+            options = ["true", "false", "unknown"]
+        elif input_type == "select":
+            input_type = "choice"
+        return {
+            "field": question.field,
+            "label": question.label,
+            "question": question.question,
+            "input_type": input_type,
+            "options": options,
+        }
+
     def abstention(status: str, message: str, missing_fields: list[str]) -> dict:
         return {
             "provider": provider,
@@ -80,9 +127,17 @@ def chat_assess(payload: ChatAssessRequest, request: Request) -> dict:
                 "service_id": service_id,
                 **answers,
             },
+            "accumulated_facts": answers,
             "contradictions": sorted(contradictions),
             "assessment": {
                 "overall_status": status,
+                "rule_results": [],
+                "counts": {
+                    "passed": 0,
+                    "failed": 0,
+                    "unknown": 0,
+                    "not_applicable": 0,
+                },
                 "passed": [],
                 "failed": [],
                 "unknown": [],
@@ -90,6 +145,11 @@ def chat_assess(payload: ChatAssessRequest, request: Request) -> dict:
                 "missing_fields": missing_fields,
                 "rule_version": None,
             },
+            "next_question": (
+                next_question(missing_fields)
+                if status == "MORE_INFORMATION_NEEDED"
+                else None
+            ),
             "explanation": message,
             "disclaimer": "Demonstration using synthetic rules. Not official permit advice.",
         }
@@ -181,21 +241,42 @@ def chat_assess(payload: ChatAssessRequest, request: Request) -> dict:
             if item.status.value == status
         ]
 
+    assessment_missing_fields = list(
+        dict.fromkeys(
+            assessment.completeness.unanswered_fields
+            + assessment.completeness.contradictory_fields
+        )
+    )
     return {
         "provider": provider,
         "extracted_facts": {
             "service_id": service_id,
             **answers,
         },
+        "accumulated_facts": answers,
         "contradictions": sorted(contradictions),
         "assessment": {
             "overall_status": assessment.overall_status.value,
+            "rule_results": [
+                {
+                    **item.model_dump(mode="json"),
+                    "label": item.description,
+                }
+                for item in assessment.rule_results
+            ],
+            "counts": assessment.counts.model_dump(),
             "passed": checks("PASS"),
             "failed": checks("FAIL"),
             "unknown": checks("UNKNOWN"),
             "not_applicable": checks("NOT_APPLICABLE"),
+            "missing_fields": assessment_missing_fields,
             "rule_version": assessment.rule_version,
         },
+        "next_question": (
+            next_question(assessment_missing_fields)
+            if assessment.overall_status.value == "MORE_INFORMATION_NEEDED"
+            else None
+        ),
         "explanation": assessment.message,
         "disclaimer": assessment.disclaimer,
     }

@@ -9,14 +9,14 @@
       "jurisdiction_ids": ["in-ka-bengaluru-demo"],
       "keywords": ["event", "festival", "concert", "college fest", "gathering"],
       "questions": [
-        {"field": "event_duration_days", "label": "How many days will the event run?", "help_text": "Include setup days only if the activity is open to attendees.", "input_type": "number"},
-        {"field": "expected_attendance", "label": "What is the maximum expected attendance?", "input_type": "number"},
-        {"field": "emergency_plan_status", "label": "Do you have an emergency plan?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}]},
-        {"field": "venue_permission_status", "label": "Do you have venue-owner permission?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}]},
-        {"field": "uses_amplified_sound", "label": "Will the event use amplified sound?", "input_type": "boolean"},
-        {"field": "amplified_sound_end_hour", "label": "At what hour will amplified sound end?", "help_text": "Use a 24-hour whole number, for example 21 for 9 PM.", "input_type": "number", "show_when": {"field": "uses_amplified_sound", "operator": "equals", "value": true}},
-        {"field": "serves_food", "label": "Will food be served or sold?", "input_type": "boolean"},
-        {"field": "food_safety_plan_status", "label": "Do you have a food-safety plan?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}], "show_when": {"field": "serves_food", "operator": "equals", "value": true}}
+        {"field": "event_duration_days", "label": "Event duration", "question": "How many days will the event run?", "help_text": "Include setup days only if the activity is open to attendees.", "input_type": "number"},
+        {"field": "expected_attendance", "label": "Expected attendance", "question": "What is the maximum expected attendance?", "input_type": "number"},
+        {"field": "emergency_plan_status", "label": "Emergency plan", "question": "Do you have an emergency plan for the event?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}]},
+        {"field": "venue_permission_status", "label": "Venue permission", "question": "Do you already have permission from the venue owner?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}]},
+        {"field": "uses_amplified_sound", "label": "Amplified sound", "question": "Will the event use amplified sound?", "input_type": "boolean"},
+        {"field": "amplified_sound_end_hour", "label": "Amplified sound end time", "question": "At what hour will amplified sound end?", "help_text": "Use a 24-hour whole number, for example 21 for 9 PM.", "input_type": "number", "show_when": {"field": "uses_amplified_sound", "operator": "equals", "value": true}},
+        {"field": "serves_food", "label": "Food service", "question": "Will food be served or sold at the event?", "input_type": "boolean"},
+        {"field": "food_safety_plan_status", "label": "Food-safety plan", "question": "Do you have a food-safety plan?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}], "show_when": {"field": "serves_food", "operator": "equals", "value": true}}
       ]
     },
     {
@@ -26,15 +26,15 @@
       "jurisdiction_ids": ["in-ka-bengaluru-demo"],
       "keywords": ["food stall", "food booth", "temporary kitchen", "sell food", "canteen stall"],
       "questions": [
-        {"field": "operating_days", "label": "How many days will the stall operate?", "input_type": "number"},
-        {"field": "food_handlers_trained", "label": "Have all food handlers completed food-safety training?", "input_type": "boolean"},
-        {"field": "handwashing_facility_available", "label": "Will a handwashing facility be available?", "input_type": "boolean"},
-        {"field": "registration_proof_status", "label": "Do you have the demo registration proof?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}]},
-        {"field": "uses_lpg", "label": "Will the stall use LPG?", "input_type": "boolean"},
-        {"field": "uses_open_flame", "label": "Will the stall use any other open flame?", "input_type": "boolean"},
-        {"field": "fire_extinguisher_available", "label": "Will a suitable fire extinguisher be available?", "input_type": "boolean", "show_when": {"any": [{"field": "uses_lpg", "operator": "equals", "value": true}, {"field": "uses_open_flame", "operator": "equals", "value": true}]}},
-        {"field": "serves_perishables", "label": "Will the stall serve perishable food?", "input_type": "boolean"},
-        {"field": "cold_storage_available", "label": "Will suitable cold storage be available?", "input_type": "boolean", "show_when": {"field": "serves_perishables", "operator": "equals", "value": true}}
+        {"field": "operating_days", "label": "Operating duration", "question": "How many days will the stall operate?", "input_type": "number"},
+        {"field": "food_handlers_trained", "label": "Food-handler training", "question": "Have all food handlers completed food-safety training?", "input_type": "boolean"},
+        {"field": "handwashing_facility_available", "label": "Handwashing facility", "question": "Will a handwashing facility be available?", "input_type": "boolean"},
+        {"field": "registration_proof_status", "label": "Registration proof", "question": "Do you have the demo registration proof?", "input_type": "select", "document": true, "options": [{"value": "have", "label": "Yes, self-reported"}, {"value": "missing", "label": "No"}, {"value": "unknown", "label": "Not sure"}]},
+        {"field": "uses_lpg", "label": "LPG use", "question": "Will the stall use LPG?", "input_type": "boolean"},
+        {"field": "uses_open_flame", "label": "Open-flame use", "question": "Will the stall use any other open flame?", "input_type": "boolean"},
+        {"field": "fire_extinguisher_available", "label": "Fire extinguisher", "question": "Will a suitable fire extinguisher be available?", "input_type": "boolean", "show_when": {"any": [{"field": "uses_lpg", "operator": "equals", "value": true}, {"field": "uses_open_flame", "operator": "equals", "value": true}]}},
+        {"field": "serves_perishables", "label": "Perishable food", "question": "Will the stall serve perishable food?", "input_type": "boolean"},
+        {"field": "cold_storage_available", "label": "Cold storage", "question": "Will suitable cold storage be available?", "input_type": "boolean", "show_when": {"field": "serves_perishables", "operator": "equals", "value": true}}
       ]
     }
   ]

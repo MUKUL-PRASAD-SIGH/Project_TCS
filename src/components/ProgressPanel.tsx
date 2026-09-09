@@ -1,161 +1,121 @@
-import type { PermitDetails } from "../types";
+import type { ChatAssessment, ExtractedFact } from "../types";
+import {
+  displayFactValue,
+  displayFieldName,
+  displayServiceName,
+} from "../data/mockData";
+import { RuleResults } from "./RuleResults";
 
 interface ProgressPanelProps {
-  permit: PermitDetails;
-  progress: number;
+  serviceId: string;
+  facts: ExtractedFact[];
+  assessment: ChatAssessment | null;
+  explanation: string;
 }
 
-function CheckIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-    >
-      <path
-        fillRule="evenodd"
-        d="M16.704 4.153a.75.75 0 01.143 1.052l-8 10.5a.75.75 0 01-1.127.075l-4.5-4.5a.75.75 0 011.06-1.06l3.894 3.893 7.48-9.817a.75.75 0 011.05-.143z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
+const STATUS_LABELS: Record<ChatAssessment["overall_status"], string> = {
+  MEETS_ASSESSED_REQUIREMENTS: "Meets assessed requirements",
+  REQUIREMENTS_NOT_MET: "Requirements not met",
+  MORE_INFORMATION_NEEDED: "More information needed",
+  NEEDS_VERIFICATION: "Needs verification",
+  UNSUPPORTED: "Unsupported",
+};
 
-function CircleIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      className="h-4 w-4"
-    >
-      <circle cx="10" cy="10" r="7" />
-    </svg>
-  );
-}
+export function ProgressPanel({
+  serviceId,
+  facts,
+  assessment,
+  explanation,
+}: ProgressPanelProps) {
+  const counts = assessment?.counts;
+  const total = counts
+    ? counts.passed + counts.failed + counts.unknown + counts.not_applicable
+    : 0;
+  const resolved = counts
+    ? counts.passed + counts.failed + counts.not_applicable
+    : 0;
+  const progress = total > 0 ? Math.round((resolved / total) * 100) : 0;
 
-function XIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-    >
-      <path
-        fillRule="evenodd"
-        d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-function WarningIcon() {
-  return (
-    <svg
-      xmlns="http://www.w3.org/2000/svg"
-      viewBox="0 0 20 20"
-      fill="currentColor"
-      className="h-4 w-4"
-    >
-      <path
-        fillRule="evenodd"
-        d="M8.485 2.495c.673-1.167 2.357-1.167 3.03 0l6.28 10.875c.673 1.167-.17 2.625-1.516 2.625H3.72c-1.347 0-2.189-1.458-1.515-2.625L8.485 2.495zM10 6a.75.75 0 01.75.75v3.5a.75.75 0 01-1.5 0v-3.5A.75.75 0 0110 6zm0 8a1 1 0 100-2 1 1 0 000 2z"
-        clipRule="evenodd"
-      />
-    </svg>
-  );
-}
-
-export function ProgressPanel({ permit, progress }: ProgressPanelProps) {
   return (
     <div className="flex flex-col gap-6">
       <div>
         <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
           Identified Permit
         </p>
-        <p className="mt-1 font-medium text-slate-900">{permit.name}</p>
-        <p className="mt-1 text-xs text-slate-500">{permit.description}</p>
+        <p className="mt-1 font-medium text-slate-900">
+          {displayServiceName(serviceId)}
+        </p>
+        <p className="mt-1 text-xs text-slate-500">
+          Demonstration using synthetic rules. Not official permit advice.
+        </p>
       </div>
 
-      <div>
-        <div className="flex items-center justify-between mb-1.5">
-          <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
-            Progress
+      {facts.length > 0 && (
+        <div>
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
+            AI Extracted
           </p>
-          <span className="text-xs font-medium text-slate-600">
-            {progress}%
-          </span>
+          <dl className="flex flex-col gap-2">
+            {facts.map((fact) => (
+              <div key={fact.field} className="text-sm">
+                <dt className="inline text-slate-500">
+                  {displayFieldName(fact.field)}:{" "}
+                </dt>
+                <dd className="inline font-medium text-slate-800">
+                  {displayFactValue(fact.value)}
+                </dd>
+              </div>
+            ))}
+          </dl>
         </div>
-        <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
-          <div
-            className="h-full rounded-full bg-slate-900 transition-all duration-500 ease-out"
-            style={{ width: `${progress}%` }}
-          />
+      )}
+
+      {assessment && assessment.rule_results.length > 0 && (
+        <>
+          <div>
+            <div className="flex items-center justify-between mb-1.5">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Deterministic Checks
+              </p>
+              <span className="text-xs font-medium text-slate-600">
+                {progress}% resolved
+              </span>
+            </div>
+            <div className="h-1.5 w-full rounded-full bg-gray-100 overflow-hidden">
+              <div
+                className="h-full rounded-full bg-slate-900 transition-all duration-500 ease-out"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <p className="mt-2 text-xs text-slate-500">
+              {counts?.passed ?? 0} passed · {counts?.failed ?? 0} failed ·{" "}
+              {counts?.unknown ?? 0} unknown · {counts?.not_applicable ?? 0} N/A
+            </p>
+          </div>
+          <RuleResults results={assessment.rule_results} />
+        </>
+      )}
+
+      {assessment && assessment.rule_results.length === 0 && (
+        <div>
+          <p className="text-sm font-medium text-slate-800">
+            {STATUS_LABELS[assessment.overall_status]}
+          </p>
+          <p className="mt-1 text-xs text-slate-500">{explanation}</p>
+          {assessment.missing_fields.length > 0 && (
+            <div className="mt-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-1">
+                Missing Information
+              </p>
+              <ul className="text-xs text-slate-600 space-y-1">
+                {assessment.missing_fields.map((field) => (
+                  <li key={field}>? {displayFieldName(field)}</li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
-      </div>
-
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
-          Requirements
-        </p>
-        <ul className="flex flex-col gap-2">
-          {permit.requirements.map((req) => (
-            <li key={req.id} className="flex items-center gap-2 text-sm">
-              <span
-                className={
-                  req.status === "met"
-                    ? "text-emerald-600"
-                    : req.status === "failed"
-                      ? "text-red-500"
-                      : "text-gray-300"
-                }
-              >
-                {req.status === "met" ? (
-                  <CheckIcon />
-                ) : req.status === "failed" ? (
-                  <XIcon />
-                ) : (
-                  <CircleIcon />
-                )}
-              </span>
-              <span
-                className={
-                  req.status === "pending"
-                    ? "text-slate-400"
-                    : "text-slate-700"
-                }
-              >
-                {req.label}
-              </span>
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      <div>
-        <p className="text-xs font-medium uppercase tracking-wide text-slate-400 mb-2">
-          Documents
-        </p>
-        <ul className="flex flex-col gap-2">
-          {permit.documents.map((doc) => (
-            <li key={doc.id} className="flex items-center gap-2 text-sm">
-              <span
-                className={
-                  doc.status === "have" ? "text-emerald-600" : "text-amber-500"
-                }
-              >
-                {doc.status === "have" ? <CheckIcon /> : <WarningIcon />}
-              </span>
-              <span className="text-slate-700">{doc.name}</span>
-            </li>
-          ))}
-        </ul>
-      </div>
+      )}
     </div>
   );
 }
